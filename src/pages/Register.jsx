@@ -1,15 +1,27 @@
-// frontend/src/pages/Register.js
 import React, { useState } from "react";
-import { Container, TextField, Button, Paper, Typography } from "@mui/material";
+import {
+  Container,
+  TextField,
+  Button,
+  Paper,
+  Typography,
+  Grid,
+} from "@mui/material";
 import axios from "axios";
-import { BASE_URL, config } from "../services/api"; // BASE_URL va JWT config
+import { BASE_URL, config } from "../services/api";
 
 const Register = () => {
   const [form, setForm] = useState({
     username: "",
     password: "",
-    role: "student",
+    role: "manager",
+    full_name: "",
+    phone: "",
+    address: "",
+    subject: "",
+    fee: "",
   });
+
   const [message, setMessage] = useState("");
 
   const handleChange = (e) =>
@@ -17,51 +29,110 @@ const Register = () => {
 
   const handleSubmit = async () => {
     try {
-      // Foydalanuvchi yaratish faqat admin/manager uchun JWT kerak
       await axios.post(`${BASE_URL}/auth/register`, form, config);
-      setMessage("Foydalanuvchi muvaffaqiyatli ro‘yxatdan o‘tdi!");
-      setForm({ username: "", password: "", role: "student" }); // formni tozalash
+      setMessage("✅ Foydalanuvchi muvaffaqiyatli ro‘yxatdan o‘tdi!");
+      setForm({
+        username: "",
+        password: "",
+        role: "manager",
+        full_name: "",
+        phone: "",
+        address: "",
+        subject: "",
+        fee: "",
+      });
     } catch (err) {
       console.error(err.response?.data || err.message);
-      setMessage("Xatolik! Foydalanuvchi mavjud yoki server bilan aloqa yo‘q.");
+      setMessage(
+        "❌ Xatolik! Foydalanuvchi mavjud yoki server bilan aloqa yo‘q."
+      );
     }
   };
 
   return (
-    <Container maxWidth="xs" sx={{ mt: 8 }}>
-      <Paper sx={{ p: 3 }}>
-        <Typography variant="h5" align="center">
-          Ro‘yxatdan o‘tkazish
+    <Container maxWidth="sm" sx={{ mt: 8 }}>
+      <Paper sx={{ p: 4 }}>
+        <Typography variant="h5" align="center" sx={{ mb: 2 }}>
+          Yangi foydalanuvchini ro‘yxatdan o‘tkazish
         </Typography>
-
-        <TextField
-          label="Foydalanuvchi nomi"
-          name="username"
-          fullWidth
-          margin="normal"
-          value={form.username}
-          onChange={handleChange}
-        />
-        <TextField
-          label="Parol"
-          name="password"
-          fullWidth
-          type="password"
-          margin="normal"
-          value={form.password}
-          onChange={handleChange}
-        />
-        <TextField
-          label="Rol (admin, manager, teacher, student)"
-          name="role"
-          fullWidth
-          margin="normal"
-          value={form.role}
-          onChange={handleChange}
-        />
+        <Grid container spacing={2}>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              label="To‘liq ism"
+              name="full_name"
+              fullWidth
+              value={form.full_name}
+              onChange={handleChange}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              label="Telefon raqam"
+              name="phone"
+              fullWidth
+              value={form.phone}
+              onChange={handleChange}
+            />
+          </Grid>
+          <Grid item xs={12}>
+            <TextField
+              label="Manzil"
+              name="address"
+              fullWidth
+              value={form.address}
+              onChange={handleChange}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              label="Fan nomi"
+              name="subject"
+              fullWidth
+              value={form.subject}
+              onChange={handleChange}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              label="Oylik to‘lov"
+              name="fee"
+              fullWidth
+              value={form.fee}
+              onChange={handleChange}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              label="Foydalanuvchi nomi"
+              name="username"
+              fullWidth
+              value={form.username}
+              onChange={handleChange}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              label="Parol"
+              name="password"
+              type="password"
+              fullWidth
+              value={form.password}
+              onChange={handleChange}
+            />
+          </Grid>
+          <Grid item xs={12}>
+            <TextField
+              label="Rol (admin, manager, teacher, student)"
+              name="role"
+              fullWidth
+              value={form.role}
+              onChange={handleChange}
+            />
+          </Grid>
+        </Grid>
 
         {message && (
-          <Typography align="center" sx={{ mt: 1 }}>
+          <Typography align="center" color="primary" sx={{ mt: 2 }}>
             {message}
           </Typography>
         )}
@@ -69,7 +140,7 @@ const Register = () => {
         <Button
           fullWidth
           variant="contained"
-          sx={{ mt: 2 }}
+          sx={{ mt: 3 }}
           onClick={handleSubmit}
         >
           Saqlash
