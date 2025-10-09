@@ -34,6 +34,7 @@ const Students = () => {
     subject: "",
     fee: "",
     age: "",
+    password: "1234", // default password
     status: "interested",
   });
 
@@ -54,14 +55,19 @@ const Students = () => {
   // 🔹 Student qo‘shish yoki tahrirlash
   const handleSave = async () => {
     try {
+      const payload = {
+        ...form,
+        role: "student", // backendda role student bo‘ladi
+      };
+
       if (editingStudent) {
         await axios.put(
           `${BASE_URL}/students/${editingStudent.id}`,
-          form,
+          payload,
           config
         );
       } else {
-        await axios.post(`${BASE_URL}/students`, form, config);
+        await axios.post(`${BASE_URL}/students`, payload, config);
       }
       fetchStudents();
       handleClose();
@@ -93,6 +99,7 @@ const Students = () => {
         subject: student.subject || "",
         fee: student.fee || "",
         age: student.age || "",
+        password: student.password || "1234",
         status: student.status || "interested",
       });
     } else {
@@ -105,6 +112,7 @@ const Students = () => {
         subject: "",
         fee: "",
         age: "",
+        password: "1234",
         status: "interested",
       });
     }
@@ -200,6 +208,14 @@ const Students = () => {
             sx={{ mt: 2 }}
             value={form.username}
             onChange={(e) => setForm({ ...form, username: e.target.value })}
+          />
+          <TextField
+            label="Password"
+            type="password"
+            fullWidth
+            sx={{ mt: 2 }}
+            value={form.password}
+            onChange={(e) => setForm({ ...form, password: e.target.value })}
           />
           <TextField
             label="Phone"
