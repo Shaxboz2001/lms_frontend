@@ -6,6 +6,7 @@ import {
   Paper,
   Typography,
   Grid,
+  MenuItem,
 } from "@mui/material";
 import axios from "axios";
 import { BASE_URL, config } from "../services/api";
@@ -24,8 +25,9 @@ const Register = () => {
 
   const [message, setMessage] = useState("");
 
-  const handleChange = (e) =>
+  const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
+  };
 
   const handleSubmit = async () => {
     try {
@@ -55,6 +57,7 @@ const Register = () => {
         <Typography variant="h5" align="center" sx={{ mb: 2 }}>
           Yangi foydalanuvchini ro‘yxatdan o‘tkazish
         </Typography>
+
         <Grid container spacing={2}>
           <Grid item xs={12} sm={6}>
             <TextField
@@ -74,6 +77,7 @@ const Register = () => {
               onChange={handleChange}
             />
           </Grid>
+
           <Grid item xs={12}>
             <TextField
               label="Manzil"
@@ -83,6 +87,7 @@ const Register = () => {
               onChange={handleChange}
             />
           </Grid>
+
           <Grid item xs={12} sm={6}>
             <TextField
               label="Fan nomi"
@@ -92,15 +97,18 @@ const Register = () => {
               onChange={handleChange}
             />
           </Grid>
+
           <Grid item xs={12} sm={6}>
             <TextField
               label="Oylik to‘lov"
               name="fee"
+              type="number"
               fullWidth
               value={form.fee}
               onChange={handleChange}
             />
           </Grid>
+
           <Grid item xs={12} sm={6}>
             <TextField
               label="Foydalanuvchi nomi"
@@ -110,6 +118,7 @@ const Register = () => {
               onChange={handleChange}
             />
           </Grid>
+
           <Grid item xs={12} sm={6}>
             <TextField
               label="Parol"
@@ -120,14 +129,22 @@ const Register = () => {
               onChange={handleChange}
             />
           </Grid>
+
+          {/* 🔽 Rol select (dropdown) */}
           <Grid item xs={12}>
             <TextField
-              label="Rol (admin, manager, teacher, student)"
+              select
+              label="Rolni tanlang"
               name="role"
               fullWidth
               value={form.role}
               onChange={handleChange}
-            />
+            >
+              <MenuItem value="admin">Admin</MenuItem>
+              <MenuItem value="manager">Manager</MenuItem>
+              <MenuItem value="teacher">Teacher</MenuItem>
+              <MenuItem value="student">Student</MenuItem>
+            </TextField>
           </Grid>
         </Grid>
 
