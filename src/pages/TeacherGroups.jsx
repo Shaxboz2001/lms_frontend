@@ -25,15 +25,9 @@ export default function TeacherGroups() {
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [students, setStudents] = useState([]);
   const [studentLoading, setStudentLoading] = useState(false);
-  const [openGroupDialog, setOpenGroupDialog] = useState(false);
+  const [open, setOpen] = useState(false);
 
-  // 🔹 Student profiling uchun
-  const [selectedStudent, setSelectedStudent] = useState(null);
-  const [studentDetail, setStudentDetail] = useState(null);
-  const [loadingDetail, setLoadingDetail] = useState(false);
-  const [openStudentDialog, setOpenStudentDialog] = useState(false);
-
-  // 🔹 Guruhlarni olish
+  // 🔹 O'qituvchining guruhlarini olish
   useEffect(() => {
     axios
       .get(`${BASE_URL}/teacher/groups/`, config)
@@ -42,11 +36,11 @@ export default function TeacherGroups() {
       .finally(() => setLoading(false));
   }, []);
 
-  // 🔹 Guruh bosilganda studentlarni olish
+  // 🔹 Guruh ustiga bosilganda studentlarni yuklash
   const handleGroupClick = async (group) => {
     setSelectedGroup(group);
     setStudents([]);
-    setOpenGroupDialog(true);
+    setOpen(true);
     setStudentLoading(true);
     try {
       const res = await axios.get(
@@ -61,21 +55,25 @@ export default function TeacherGroups() {
     }
   };
 
-  // 🔹 Student ustiga bosilganda uning profilini olish
-  const handleStudentClick = async (student) => {
-    setSelectedStudent(student);
-    setStudentDetail(null);
-    setOpenStudentDialog(true);
-    setLoadingDetail(true);
-    try {
-      const res = await axios.get(`${BASE_URL}/users/${student.id}`, config);
-      setStudentDetail(res.data);
-    } catch (err) {
-      console.error("Student ma’lumotlarini olishda xatolik:", err);
-    } finally {
-      setLoadingDetail(false);
-    }
+  const handleClose = () => {
+    setOpen(false);
+    setSelectedGroup(null);
+    setStudents([]);
   };
+
+  if (loading)
+    return (
+      <Box sx={{ textAlign: "center", mt: 4 }}>
+        <CircularProgress />
+      </Box>
+    );
+
+  if (!groups.length)
+    return (
+      <Typography variant="h6" sx={{ mt: 4 }}>
+        Sizda hali guruhlar yo‘q.
+      </Typography>
+    );
 
   return (
     <Box sx={{ mt: 2 }}>
@@ -83,49 +81,34 @@ export default function TeacherGroups() {
         Mening Guruhlarim
       </Typography>
 
-      {/* 🔹 Guruhlar ro‘yxati */}
-      {loading ? (
-        <Box sx={{ textAlign: "center", mt: 4 }}>
-          <CircularProgress />
-        </Box>
-      ) : !groups.length ? (
-        <Typography variant="h6" sx={{ mt: 4 }}>
-          Sizda hali guruhlar yo‘q.
-        </Typography>
-      ) : (
-        <Grid container spacing={2}>
-          {groups.map((group) => (
-            <Grid item xs={12} sm={6} md={4} key={group.id}>
-              <Card
-                sx={{
-                  borderRadius: 2,
-                  boxShadow: 3,
-                  cursor: "pointer",
-                  transition: "0.3s",
-                  "&:hover": { boxShadow: 6, transform: "scale(1.02)" },
-                }}
-                onClick={() => handleGroupClick(group)}
-              >
-                <CardContent>
-                  <Typography variant="h6">{group.name}</Typography>
-                  {group.description && (
-                    <Typography color="text.secondary">
-                      {group.description}
-                    </Typography>
-                  )}
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
-      )}
+      <Grid container spacing={2}>
+        {groups.map((group) => (
+          <Grid item xs={12} sm={6} md={4} key={group.id}>
+            <Card
+              sx={{
+                borderRadius: 2,
+                boxShadow: 3,
+                cursor: "pointer",
+                transition: "0.3s",
+                "&:hover": { boxShadow: 6, transform: "scale(1.02)" },
+              }}
+              onClick={() => handleGroupClick(group)}
+            >
+              <CardContent>
+                <Typography variant="h6">{group.name}</Typography>
+                {group.description && (
+                  <Typography color="text.secondary">
+                    {group.description}
+                  </Typography>
+                )}
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
 
-      {/* 🔹 Guruhdagi studentlar oynasi */}
-      <Dialog
-        open={openGroupDialog}
-        onClose={() => setOpenGroupDialog(false)}
-        fullWidth
-      >
+      {/* 🔹 Modal: Guruhdagi studentlar */}
+      <Dialog open={open} onClose={handleClose} fullWidth>
         <DialogTitle
           sx={{
             display: "flex",
@@ -136,7 +119,7 @@ export default function TeacherGroups() {
           {selectedGroup
             ? `${selectedGroup.name} guruhidagi talabalar`
             : "Talabalar"}
-          <IconButton onClick={() => setOpenGroupDialog(false)}>
+          <IconButton onClick={handleClose}>
             <CloseIcon />
           </IconButton>
         </DialogTitle>
@@ -149,7 +132,7 @@ export default function TeacherGroups() {
             <List>
               {students.map((student) => (
                 <React.Fragment key={student.id}>
-                  <ListItem button onClick={() => handleStudentClick(student)}>
+                  <ListItem>
                     <ListItemText
                       primary={student.full_name || student.username}
                       secondary={`Tel: ${student.phone || "Noma’lum"}`}
@@ -163,52 +146,6 @@ export default function TeacherGroups() {
             <Typography color="text.secondary">
               Bu guruhda hali studentlar yo‘q.
             </Typography>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* 🔹 Student profil oynasi */}
-      <Dialog
-        open={openStudentDialog}
-        onClose={() => setOpenStudentDialog(false)}
-        fullWidth
-      >
-        <DialogTitle
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-          {selectedStudent?.full_name || "Student ma’lumotlari"}
-          <IconButton onClick={() => setOpenStudentDialog(false)}>
-            <CloseIcon />
-          </IconButton>
-        </DialogTitle>
-        <DialogContent dividers>
-          {loadingDetail ? (
-            <Box sx={{ textAlign: "center", py: 3 }}>
-              <CircularProgress />
-            </Box>
-          ) : studentDetail ? (
-            <Box>
-              <Typography variant="h6">{studentDetail.full_name}</Typography>
-              <Typography color="text.secondary">
-                Username: {studentDetail.username}
-              </Typography>
-              <Typography color="text.secondary">
-                Telefon: {studentDetail.phone || "—"}
-              </Typography>
-              <Typography color="text.secondary">
-                Yashash manzili: {studentDetail.address || "—"}
-              </Typography>
-              <Typography color="text.secondary">
-                Yosh: {studentDetail.age || "—"}
-              </Typography>
-              {/* ✅ Keyinchalik shu joyga test natijalarini ham qo‘shish mumkin */}
-            </Box>
-          ) : (
-            <Typography color="text.secondary">Ma’lumot topilmadi.</Typography>
           )}
         </DialogContent>
       </Dialog>
