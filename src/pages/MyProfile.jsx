@@ -1,4 +1,4 @@
-// frontend/src/pages/MyProfile.js
+// frontend/src/pages/MyProfile.jsx
 import React, { useEffect, useState } from "react";
 import {
   Box,
@@ -7,6 +7,7 @@ import {
   CardContent,
   Avatar,
   Divider,
+  Grid,
 } from "@mui/material";
 import axios from "axios";
 import { BASE_URL, config } from "../services/api";
@@ -24,27 +25,78 @@ export default function MyProfile() {
   if (!user) return <Typography>Yuklanmoqda...</Typography>;
 
   return (
-    <Box sx={{ maxWidth: 500, mx: "auto", mt: 5 }}>
-      <Card sx={{ p: 3, boxShadow: 4 }}>
+    <Box sx={{ maxWidth: 700, mx: "auto", mt: 6 }}>
+      <Card sx={{ p: 3, boxShadow: 6, borderRadius: "16px" }}>
         <CardContent>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-            <Avatar sx={{ bgcolor: "primary.main", width: 64, height: 64 }}>
-              {user.full_name?.[0]?.toUpperCase()}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 3 }}>
+            <Avatar
+              sx={{
+                bgcolor: "primary.main",
+                width: 80,
+                height: 80,
+                fontSize: 32,
+              }}
+            >
+              {user.full_name?.[0]?.toUpperCase() ||
+                user.username?.[0]?.toUpperCase()}
             </Avatar>
             <Box>
-              <Typography variant="h6">{user.full_name}</Typography>
-              <Typography color="text.secondary">{user.email}</Typography>
+              <Typography variant="h5" fontWeight="bold">
+                {user.full_name || "Ism kiritilmagan"}
+              </Typography>
+              <Typography variant="body1" color="text.secondary">
+                @{user.username}
+              </Typography>
             </Box>
           </Box>
 
-          <Divider sx={{ my: 2 }} />
+          <Divider sx={{ my: 3 }} />
 
-          <Typography>
-            <strong>Role:</strong> {user.role}
-          </Typography>
-          <Typography>
-            <strong>Username:</strong> {user.username}
-          </Typography>
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6}>
+              <Typography>
+                <strong>Rol:</strong> {user.role}
+              </Typography>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <Typography>
+                <strong>Yosh:</strong> {user.age || "Ko‘rsatilmagan"}
+              </Typography>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <Typography>
+                <strong>Telefon:</strong> {user.phone || "Ko‘rsatilmagan"}
+              </Typography>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <Typography>
+                <strong>Manzil:</strong> {user.address || "Ko‘rsatilmagan"}
+              </Typography>
+            </Grid>
+          </Grid>
+
+          <Divider sx={{ my: 3 }} />
+
+          {user.group_id && (
+            <Typography color="primary">
+              <strong>Guruh ID:</strong> {user.group_id}
+            </Typography>
+          )}
+          {user.subject && (
+            <Typography color="primary">
+              <strong>Fan:</strong> {user.subject}
+            </Typography>
+          )}
+          {user.fee && (
+            <Typography color="primary">
+              <strong>To‘lov summasi:</strong> {user.fee} so‘m
+            </Typography>
+          )}
+          {user.status && (
+            <Typography color="primary">
+              <strong>Status: {user.status}</strong>
+            </Typography>
+          )}
         </CardContent>
       </Card>
     </Box>
