@@ -26,7 +26,7 @@ import Students from "./Students";
 import Attendance from "./Attendance";
 import Test from "./Test";
 import Courses from "./Course";
-import MyProfile from "./MyProfile"; // ✅ Profil sahifasi
+import MyProfile from "./MyProfile";
 
 const Dashboard = ({ role }) => {
   const navigate = useNavigate();
