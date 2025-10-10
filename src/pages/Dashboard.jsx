@@ -27,6 +27,7 @@ import Attendance from "./Attendance";
 import Test from "./Test";
 import Courses from "./Course";
 import MyProfile from "./MyProfile";
+import TeacherGroups from "./TeacherGroups";
 
 const Dashboard = ({ role }) => {
   const navigate = useNavigate();
@@ -57,6 +58,7 @@ const Dashboard = ({ role }) => {
       { name: "Kurslar", path: "kurslar", component: <Courses /> },
     ],
     teacher: [
+      { name: "Guruhlarim", path: "guruhlarim", component: <TeacherGroups /> },
       { name: "Yo‘qlama", path: "yoqlama", component: <Attendance /> },
       {
         name: "Testlar",
