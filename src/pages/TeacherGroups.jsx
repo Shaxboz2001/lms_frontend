@@ -17,7 +17,7 @@ import {
   IconButton,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
-import { BASE_URL, config } from "../services/api";
+import { api, BASE_URL, config } from "../services/api";
 
 export default function TeacherGroups() {
   const [groups, setGroups] = useState([]);
@@ -29,8 +29,8 @@ export default function TeacherGroups() {
 
   // 🔹 O'qituvchining guruhlarini olish
   useEffect(() => {
-    axios
-      .get(`${BASE_URL}/teacher/groups/`, config)
+    api
+      .get(`/teacher/groups/`)
       .then((res) => setGroups(res.data))
       .catch((err) => console.error(err))
       .finally(() => setLoading(false));
@@ -43,10 +43,7 @@ export default function TeacherGroups() {
     setOpen(true);
     setStudentLoading(true);
     try {
-      const res = await axios.get(
-        `${BASE_URL}/groups/${group.id}/students/`,
-        config
-      );
+      const res = await api.get(`/groups/${group.id}/students/`);
       setStudents(res.data);
     } catch (err) {
       console.error("Studentlarni olishda xatolik:", err);

@@ -18,7 +18,7 @@ import {
   InputLabel,
   FormControl,
 } from "@mui/material";
-import { BASE_URL } from "../services/api"; // BASE_URL import qilamiz
+import { api, BASE_URL } from "../services/api"; // BASE_URL import qilamiz
 
 const Payments = () => {
   const [payments, setPayments] = useState([]);
@@ -50,7 +50,7 @@ const Payments = () => {
 
   const fetchPayments = async () => {
     try {
-      const response = await axios.get(`${BASE_URL}/payments`, config);
+      const response = await api.get(`/payments`);
       setPayments(response.data);
     } catch (error) {
       console.error(
@@ -62,7 +62,7 @@ const Payments = () => {
 
   const fetchStudents = async () => {
     try {
-      const response = await axios.get(`${BASE_URL}/users`, config);
+      const response = await api.get(`/users`);
       setStudents(response.data.filter((u) => u.role === "student"));
     } catch (error) {
       console.error(
@@ -74,7 +74,7 @@ const Payments = () => {
 
   const fetchGroups = async () => {
     try {
-      const response = await axios.get(`${BASE_URL}/groups`, config);
+      const response = await api.get(`/groups`);
       setGroups(response.data);
     } catch (error) {
       console.error(
@@ -86,18 +86,14 @@ const Payments = () => {
 
   const addPayment = async () => {
     try {
-      await axios.post(
-        `${BASE_URL}/payments`,
-        {
-          amount: parseFloat(amount),
-          description,
-          student_id: selectedStudent ? parseInt(selectedStudent) : null,
-          group_id: selectedGroup ? parseInt(selectedGroup) : null,
-          teacher_id: role === "teacher" ? parseInt(userId) : null,
-          month: selectedMonth,
-        },
-        config
-      );
+      await api.post(`/payments`, {
+        amount: parseFloat(amount),
+        description,
+        student_id: selectedStudent ? parseInt(selectedStudent) : null,
+        group_id: selectedGroup ? parseInt(selectedGroup) : null,
+        teacher_id: role === "teacher" ? parseInt(userId) : null,
+        month: selectedMonth,
+      });
 
       setAmount("");
       setDescription("");

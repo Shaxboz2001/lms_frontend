@@ -15,7 +15,7 @@ import {
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import axios from "axios";
-import { BASE_URL, config } from "../services/api";
+import { api } from "../services/api";
 
 const monthNames = [
   "Yanvar",
@@ -47,8 +47,8 @@ export default function Attendance() {
 
   // Guruhlarni yuklash
   useEffect(() => {
-    axios
-      .get(`${BASE_URL}/teacher/groups/`, config)
+    api
+      .get(`/teacher/groups/`)
       .then((res) => setGroups(res.data))
       .catch((err) => console.error(err));
   }, []);
@@ -58,10 +58,7 @@ export default function Attendance() {
     if (!groupId) return;
     setLoading(true);
     try {
-      const res = await axios.get(
-        `${BASE_URL}/groups/${groupId}/students/`,
-        config
-      );
+      const res = await api.get(`/groups/${groupId}/students/`);
       setStudents(res.data);
       const initial = {};
       res.data.forEach((s) => (initial[s.id] = true));
@@ -89,11 +86,11 @@ export default function Attendance() {
       is_present: attendance[s.id],
     }));
     try {
-      await axios.post(
-        `${BASE_URL}/attendance/`,
-        { group_id: selectedGroup, records, date_: selectedDate },
-        config
-      );
+      await api.post(`/attendance/`, {
+        group_id: selectedGroup,
+        records,
+        date_: selectedDate,
+      });
       alert("✅ Yo‘qlama saqlandi!");
       loadReport();
     } catch (err) {
@@ -106,10 +103,9 @@ export default function Attendance() {
     if (!selectedGroup) return;
     setLoadingReport(true);
     try {
-      const res = await axios.get(
-        `${BASE_URL}/attendance/report/${selectedGroup}`,
-        { params: { month: selectedMonth }, ...config }
-      );
+      const res = await api.get(`/attendance/report/${selectedGroup}`, {
+        params: { month: selectedMonth },
+      });
       setReportData(res.data);
     } catch (err) {
       console.error(err);

@@ -18,7 +18,7 @@ import {
   FormControlLabel,
   Paper,
 } from "@mui/material";
-import { BASE_URL, config } from "../services/api";
+import { api, BASE_URL, config } from "../services/api";
 
 export default function TestPage() {
   const [role, setRole] = useState("");
@@ -46,10 +46,10 @@ export default function TestPage() {
     const fetchData = async () => {
       try {
         if (role === "teacher") {
-          const resGroups = await axios.get(`${BASE_URL}/groups/`, config);
+          const resGroups = await api.get(`/groups/`);
           setGroups(resGroups.data);
         }
-        const resTests = await axios.get(`${BASE_URL}/tests`, config);
+        const resTests = await api.get(`/tests`);
         setTests(resTests.data);
       } catch (err) {
         console.error("Xato:", err);
@@ -73,11 +73,11 @@ export default function TestPage() {
   const createTest = async () => {
     try {
       const payload = { ...newTest, questions };
-      await axios.post(`${BASE_URL}/tests/`, payload, config);
+      await api.post(`/tests/`, payload);
       alert("✅ Test yaratildi!");
       setNewTest({ title: "", description: "", group_id: "" });
       setQuestions([{ text: "", options: [{ text: "", is_correct: 0 }] }]);
-      const res = await axios.get(`${BASE_URL}/tests`, config);
+      const res = await api.get(`/tests`);
       setTests(res.data);
     } catch (err) {
       alert("❌ Xatolik test yaratishda!");
@@ -85,7 +85,7 @@ export default function TestPage() {
   };
 
   const handleSelectTest = async (testId) => {
-    const res = await axios.get(`${BASE_URL}/tests/${testId}`, config);
+    const res = await api.get(`/tests/${testId}`);
     setSelectedTest(res.data);
     setSubmitted(false);
     setResult(null);
@@ -93,10 +93,7 @@ export default function TestPage() {
 
   const handleViewResults = async (testId) => {
     try {
-      const res = await axios.get(
-        `${BASE_URL}/tests/${testId}/results`,
-        config
-      );
+      const res = await api.get(`/tests/${testId}/results`);
       setTestTitle(res.data.test_name);
       setTestResults(res.data.results || []);
       setSelectedTest({ id: testId });
@@ -118,11 +115,7 @@ export default function TestPage() {
       })),
     };
 
-    const res = await axios.post(
-      `${BASE_URL}/tests/${selectedTest.id}/submit`,
-      payload,
-      config
-    );
+    const res = await api.post(`/tests/${selectedTest.id}/submit`, payload);
     setResult(res.data);
     setSubmitted(true);
   };

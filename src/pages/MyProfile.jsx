@@ -15,7 +15,7 @@ import {
   CircularProgress,
 } from "@mui/material";
 import axios from "axios";
-import { BASE_URL, config } from "../services/api";
+import { api, BASE_URL, config } from "../services/api";
 
 export default function MyProfile() {
   const [user, setUser] = useState(null);
@@ -34,7 +34,7 @@ export default function MyProfile() {
   const fetchProfile = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${BASE_URL}/users/me`, config);
+      const res = await api.get(`/users/me`);
       setUser(res.data);
       setForm({
         username: res.data.username || "",
@@ -79,7 +79,7 @@ export default function MyProfile() {
       if (payload.age === "") delete payload.age;
       else payload.age = parseInt(payload.age, 10);
 
-      await axios.put(`${BASE_URL}/users/${user.id}`, payload, config);
+      await api.put(`/users/${user.id}`, payload);
       await fetchProfile();
       handleCloseEdit();
       alert("Profil muvaffaqiyatli yangilandi");

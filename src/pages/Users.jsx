@@ -10,7 +10,7 @@ import {
   Paper,
   Typography,
 } from "@mui/material";
-import { BASE_URL } from "../services/api"; // BASE_URL import qilamiz
+import { api, BASE_URL } from "../services/api"; // BASE_URL import qilamiz
 
 const Users = () => {
   const [users, setUsers] = useState([]);
@@ -20,11 +20,7 @@ const Users = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const res = await axios.get(`${BASE_URL}/users`, {
-          headers: {
-            Authorization: `Bearer ${token}`, // JWT token headerga qo'shamiz
-          },
-        });
+        const res = await api.get(`/users`);
         setUsers(res.data);
       } catch (err) {
         console.error(

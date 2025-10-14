@@ -20,7 +20,7 @@ import {
   Paper,
 } from "@mui/material";
 import axios from "axios";
-import { BASE_URL, config } from "../services/api";
+import { api, BASE_URL, config } from "../services/api";
 
 const Students = () => {
   const [students, setStudents] = useState([]);
@@ -41,7 +41,7 @@ const Students = () => {
   // 🔹 Studentlarni olish
   const fetchStudents = async () => {
     try {
-      const res = await axios.get(`${BASE_URL}/students`, config);
+      const res = await api.get(`/students`);
       setStudents(res.data);
     } catch (err) {
       console.error("Fetch error:", err.response?.data || err.message);
@@ -61,13 +61,9 @@ const Students = () => {
       };
 
       if (editingStudent) {
-        await axios.put(
-          `${BASE_URL}/students/${editingStudent.id}`,
-          payload,
-          config
-        );
+        await api.put(`/students/${editingStudent.id}`, payload);
       } else {
-        await axios.post(`${BASE_URL}/students`, payload, config);
+        await api.post(`/students`, payload);
       }
       fetchStudents();
       handleClose();
@@ -80,7 +76,7 @@ const Students = () => {
   const handleDelete = async (id) => {
     if (!window.confirm("Haqiqatan ham o‘chirmoqchimisiz?")) return;
     try {
-      await axios.delete(`${BASE_URL}/students/${id}`, config);
+      await api.delete(`/students/${id}`);
       fetchStudents();
     } catch (err) {
       console.error("Delete error:", err.response?.data || err.message);

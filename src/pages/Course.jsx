@@ -11,7 +11,7 @@ import {
   Divider,
   CircularProgress,
 } from "@mui/material";
-import { BASE_URL, config } from "../services/api";
+import { api, BASE_URL, config } from "../services/api";
 
 export default function Courses() {
   const [role, setRole] = useState("");
@@ -35,7 +35,7 @@ export default function Courses() {
 
   const fetchCourses = async () => {
     try {
-      const res = await axios.get(`${BASE_URL}/courses`, config);
+      const res = await api.get(`/courses`);
       setCourses(res.data);
     } catch (err) {
       console.error("Kurslarni olishda xatolik:", err);
@@ -44,7 +44,7 @@ export default function Courses() {
 
   const fetchMyCourses = async () => {
     try {
-      const res = await axios.get(`${BASE_URL}/courses/my`, config);
+      const res = await api.get(`/courses/my`);
       setMyCourses(res.data);
     } catch (err) {
       console.error("Mening kurslarimni olishda xatolik:", err);
@@ -62,7 +62,7 @@ export default function Courses() {
   const handleCreateCourse = async () => {
     if (!newCourse.title.trim()) return alert("Kurs nomi kiritilishi kerak!");
     try {
-      await axios.post(`${BASE_URL}/courses`, newCourse, config);
+      await api.post(`/courses`, newCourse);
       alert("✅ Kurs muvaffaqiyatli yaratildi!");
       setNewCourse({
         title: "",
@@ -82,7 +82,7 @@ export default function Courses() {
   const handleJoinCourse = async (id) => {
     setLoading(true);
     try {
-      await axios.post(`${BASE_URL}/courses/${id}/join`, {}, config);
+      await api.post(`/courses/${id}/join`, {});
       alert("✅ Siz kursga muvaffaqiyatli qo‘shildingiz!");
       fetchMyCourses();
     } catch (err) {

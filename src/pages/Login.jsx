@@ -1,8 +1,7 @@
 // src/pages/Login.js
 import React, { useState } from "react";
 import { Container, TextField, Button, Typography, Paper } from "@mui/material";
-import axios from "axios";
-import { BASE_URL } from "../services/api"; // BASE_URL import qilamiz
+import { api, BASE_URL } from "../services/api"; // axios instance ni import qilamiz
 
 const Login = () => {
   const [username, setUsername] = useState("");
@@ -12,8 +11,8 @@ const Login = () => {
   const handleLogin = async () => {
     setError(""); // eski errorni tozalash
     try {
-      console.log(BASE_URL);
-      const res = await axios.post(`${BASE_URL}/auth/login`, {
+      // Login so‘rovi
+      const res = await api.post(`/auth/login`, {
         username,
         password,
       });
@@ -32,10 +31,11 @@ const Login = () => {
 
   return (
     <Container maxWidth="xs" sx={{ mt: 10 }}>
-      <Paper sx={{ p: 4 }}>
+      <Paper sx={{ p: 4, borderRadius: 3, boxShadow: 4 }}>
         <Typography variant="h5" align="center" gutterBottom>
           Kirish
         </Typography>
+
         <TextField
           label="Foydalanuvchi nomi"
           fullWidth
@@ -43,6 +43,7 @@ const Login = () => {
           value={username}
           onChange={(e) => setUsername(e.target.value)}
         />
+
         <TextField
           label="Parol"
           fullWidth
@@ -51,11 +52,13 @@ const Login = () => {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
+
         {error && (
           <Typography color="error" align="center" sx={{ mt: 1 }}>
             {error}
           </Typography>
         )}
+
         <Button
           variant="contained"
           fullWidth

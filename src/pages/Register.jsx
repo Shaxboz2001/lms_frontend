@@ -9,7 +9,7 @@ import {
   MenuItem,
 } from "@mui/material";
 import axios from "axios";
-import { BASE_URL, config } from "../services/api";
+import { api, BASE_URL, config } from "../services/api";
 
 const Register = () => {
   const [form, setForm] = useState({
@@ -31,7 +31,7 @@ const Register = () => {
 
   const handleSubmit = async () => {
     try {
-      await axios.post(`${BASE_URL}/auth/register`, form, config);
+      await api.post(`/auth/register`, form);
       setMessage("✅ Foydalanuvchi muvaffaqiyatli ro‘yxatdan o‘tdi!");
       setForm({
         username: "",

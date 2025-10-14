@@ -16,7 +16,6 @@ import {
 } from "@mui/material";
 import { Routes, Route, useNavigate } from "react-router-dom";
 import axios from "axios";
-import { BASE_URL, config } from "../services/api";
 
 import Register from "./Register";
 import Users from "./Users";
@@ -28,6 +27,7 @@ import Test from "./Test";
 import Courses from "./Course";
 import MyProfile from "./MyProfile";
 import TeacherGroups from "./TeacherGroups";
+import { api } from "../services/api";
 
 const Dashboard = ({ role }) => {
   const navigate = useNavigate();
@@ -81,8 +81,8 @@ const Dashboard = ({ role }) => {
   const pages = pagesByRole[role] || [];
 
   useEffect(() => {
-    axios
-      .get(`${BASE_URL}/users/me`, config)
+    api
+      .get(`/users/me`)
       .then((res) => setUser(res.data))
       .catch(() => setUser(null))
       .finally(() => setLoading(false));

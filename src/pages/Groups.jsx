@@ -19,7 +19,7 @@ import {
 } from "@mui/material";
 
 // Import BASE_URL va config
-import { BASE_URL, config } from "../services/api";
+import { api, BASE_URL, config } from "../services/api";
 
 const Groups = () => {
   const [groups, setGroups] = useState([]);
@@ -38,7 +38,7 @@ const Groups = () => {
   // -------------------
   const fetchUsers = async () => {
     try {
-      const res = await axios.get(`${BASE_URL}/users/`, config);
+      const res = await api.get(`/users/`);
       setAllStudents(res.data.filter((u) => u.role === "student"));
       setAllTeachers(res.data.filter((u) => u.role === "teacher"));
     } catch (err) {
@@ -52,7 +52,7 @@ const Groups = () => {
   const fetchGroups = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${BASE_URL}/groups/`, config);
+      const res = await api.get(`/groups/`);
       setGroups(res.data);
     } catch (err) {
       console.error("Groups fetch error:", err.response?.data || err.message);
@@ -71,16 +71,12 @@ const Groups = () => {
   // -------------------
   const handleCreate = async () => {
     try {
-      await axios.post(
-        `${BASE_URL}/groups/`,
-        {
-          name,
-          description,
-          student_ids: selectedStudents,
-          teacher_ids: selectedTeachers,
-        },
-        config
-      );
+      await api.post(`/groups/`, {
+        name,
+        description,
+        student_ids: selectedStudents,
+        teacher_ids: selectedTeachers,
+      });
       setName("");
       setDescription("");
       setSelectedStudents([]);
@@ -97,7 +93,7 @@ const Groups = () => {
   // -------------------
   const handleDelete = async (id) => {
     try {
-      await axios.delete(`${BASE_URL}/groups/${id}`, config);
+      await api.delete(`/groups/${id}`);
       fetchGroups();
     } catch (err) {
       console.error("Delete group error:", err.response?.data || err.message);
