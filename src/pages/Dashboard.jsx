@@ -1,3 +1,4 @@
+// src/pages/Dashboard.jsx
 import React, { useEffect, useState } from "react";
 import {
   Box,
@@ -13,9 +14,15 @@ import {
   Menu,
   MenuItem,
   CircularProgress,
+  Grid,
+  Card,
+  CardContent,
+  Dialog,
+  DialogTitle,
+  DialogContent,
 } from "@mui/material";
 import { Routes, Route, useNavigate } from "react-router-dom";
-import axios from "axios";
+import { api } from "../services/api";
 
 import Register from "./Register";
 import Users from "./Users";
@@ -27,14 +34,17 @@ import Test from "./Test";
 import Courses from "./Course";
 import MyProfile from "./MyProfile";
 import TeacherGroups from "./TeacherGroups";
-import { api } from "../services/api";
 
 const Dashboard = ({ role }) => {
   const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = useState(null);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({});
+  const [openDialog, setOpenDialog] = useState(false);
+  const [dialogContent, setDialogContent] = useState(null);
 
+  // Role-based pages
   const pagesByRole = {
     admin: [
       {
@@ -69,7 +79,6 @@ const Dashboard = ({ role }) => {
     student: [
       { name: "Kurslarim", path: "kurslarim", component: <Courses /> },
       { name: "Baholar", path: "baholar", component: <Register /> },
-      { name: "Yozilish", path: "yozilish", component: <Register /> },
       {
         name: "Testlar",
         path: "testlar",
@@ -86,6 +95,12 @@ const Dashboard = ({ role }) => {
       .then((res) => setUser(res.data))
       .catch(() => setUser(null))
       .finally(() => setLoading(false));
+
+    // statistikani olish
+    api
+      .get(`/dashboard/stats`)
+      .then((res) => setStats(res.data))
+      .catch(() => {});
   }, []);
 
   const handleMenu = (e) => setAnchorEl(e.currentTarget);
@@ -95,16 +110,22 @@ const Dashboard = ({ role }) => {
     window.location.href = "/login";
   };
 
+  // Dialog ochish
+  const openStatsDialog = (title, content) => {
+    setDialogContent({ title, content });
+    setOpenDialog(true);
+  };
+
+  const closeDialog = () => setOpenDialog(false);
+
   return (
     <Box sx={{ display: "flex" }}>
-      {/* ✅ AppBar (yuqori qism) */}
+      {/* ✅ AppBar */}
       <AppBar position="fixed">
         <Toolbar>
           <Typography variant="h6" sx={{ flexGrow: 1 }}>
             LMS Dashboard ({role})
           </Typography>
-
-          {/* 👇 Avatar + menyu */}
           {loading ? (
             <CircularProgress size={24} color="inherit" />
           ) : user ? (
@@ -160,7 +181,7 @@ const Dashboard = ({ role }) => {
         </List>
       </Drawer>
 
-      {/* ✅ Asosiy kontent qismi */}
+      {/* ✅ Asosiy kontent */}
       <Box component="main" sx={{ flexGrow: 1, p: 3, mt: 8 }}>
         <Routes>
           {pages.map((page, i) => (
@@ -170,12 +191,174 @@ const Dashboard = ({ role }) => {
               element={<div>{page.component}</div>}
             />
           ))}
-          {/* Profil sahifasi */}
           <Route path="myprofile" element={<MyProfile />} />
+
+          {/* Dashboard Home */}
           <Route
             path="/"
             element={
-              <Typography variant="h5">Dashboard asosiy sahifasi</Typography>
+              <Box>
+                <Typography variant="h5" gutterBottom>
+                  Asosiy Statistik Ma’lumotlar
+                </Typography>
+                <Grid container spacing={2}>
+                  {role === "admin" || role === "manager" ? (
+                    <>
+                      <Grid item xs={12} md={3}>
+                        <Card
+                          onClick={() =>
+                            openStatsDialog("O‘quvchilar", stats.students)
+                          }
+                        >
+                          <CardContent>
+                            <Typography variant="h6">O‘quvchilar</Typography>
+                            <Typography variant="h4">
+                              {stats.students?.total || 0}
+                            </Typography>
+                            <Typography variant="body2">
+                              Qiziqqan: {stats.students?.interested || 0} |
+                              O‘qiyotgan: {stats.students?.studying || 0}
+                            </Typography>
+                          </CardContent>
+                        </Card>
+                      </Grid>
+
+                      <Grid item xs={12} md={3}>
+                        <Card
+                          onClick={() =>
+                            openStatsDialog("Guruhlar", stats.groups)
+                          }
+                        >
+                          <CardContent>
+                            <Typography variant="h6">Guruhlar</Typography>
+                            <Typography variant="h4">
+                              {stats.groups?.count || 0}
+                            </Typography>
+                          </CardContent>
+                        </Card>
+                      </Grid>
+
+                      <Grid item xs={12} md={3}>
+                        <Card
+                          onClick={() =>
+                            openStatsDialog("To‘lovlar", stats.payments)
+                          }
+                        >
+                          <CardContent>
+                            <Typography variant="h6">To‘lovlar</Typography>
+                            <Typography variant="h4">
+                              {stats.payments?.total || 0} so‘m
+                            </Typography>
+                            <Typography variant="body2">
+                              Bugun: {stats.payments?.today || 0} so‘m
+                            </Typography>
+                          </CardContent>
+                        </Card>
+                      </Grid>
+                    </>
+                  ) : role === "student" ? (
+                    <>
+                      <Grid item xs={12} md={4}>
+                        <Card>
+                          <CardContent>
+                            <Typography variant="h6">Test baholari</Typography>
+                            <Typography variant="h4">
+                              {stats.tests?.average || "N/A"}
+                            </Typography>
+                            <Typography variant="body2">
+                              Oxirgi test: {stats.tests?.last || "-"}
+                            </Typography>
+                          </CardContent>
+                        </Card>
+                      </Grid>
+
+                      <Grid item xs={12} md={4}>
+                        <Card>
+                          <CardContent>
+                            <Typography variant="h6">
+                              Dars qatnashuvi
+                            </Typography>
+                            <Typography variant="h4">
+                              {stats.attendance?.attended || 0}/
+                              {stats.attendance?.total || 0}
+                            </Typography>
+                            <Typography variant="body2">
+                              Qatnashmagan: {stats.attendance?.missed || 0}
+                            </Typography>
+                          </CardContent>
+                        </Card>
+                      </Grid>
+
+                      <Grid item xs={12} md={4}>
+                        <Card onClick={() => navigate("/dashboard/myprofile")}>
+                          <CardContent>
+                            <Typography variant="h6">
+                              Profil ma’lumotlari
+                            </Typography>
+                            <Typography variant="body2">
+                              {user?.full_name}
+                            </Typography>
+                            <Typography variant="body2">
+                              {user?.phone}
+                            </Typography>
+                          </CardContent>
+                        </Card>
+                      </Grid>
+                    </>
+                  ) : role === "teacher" ? (
+                    <>
+                      <Grid item xs={12} md={4}>
+                        <Card>
+                          <CardContent>
+                            <Typography variant="h6">
+                              O‘quvchilar soni
+                            </Typography>
+                            <Typography variant="h4">
+                              {stats.students_count || 0}
+                            </Typography>
+                          </CardContent>
+                        </Card>
+                      </Grid>
+                      <Grid item xs={12} md={4}>
+                        <Card>
+                          <CardContent>
+                            <Typography variant="h6">Bitirganlar</Typography>
+                            <Typography variant="h4">
+                              {stats.graduated || 0}
+                            </Typography>
+                          </CardContent>
+                        </Card>
+                      </Grid>
+                      <Grid item xs={12} md={4}>
+                        <Card onClick={() => navigate("/dashboard/myprofile")}>
+                          <CardContent>
+                            <Typography variant="h6">O‘zim haqimda</Typography>
+                            <Typography variant="body2">
+                              {user?.full_name}
+                            </Typography>
+                            <Typography variant="body2">
+                              {user?.phone}
+                            </Typography>
+                          </CardContent>
+                        </Card>
+                      </Grid>
+                    </>
+                  ) : null}
+                </Grid>
+
+                {/* Modal dialog */}
+                <Dialog
+                  open={openDialog}
+                  onClose={closeDialog}
+                  maxWidth="sm"
+                  fullWidth
+                >
+                  <DialogTitle>{dialogContent?.title}</DialogTitle>
+                  <DialogContent>
+                    <pre>{JSON.stringify(dialogContent?.content, null, 2)}</pre>
+                  </DialogContent>
+                </Dialog>
+              </Box>
             }
           />
         </Routes>
