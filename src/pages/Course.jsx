@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
 import {
   Box,
   Typography,
@@ -20,19 +19,18 @@ export default function Courses() {
     title: "",
     description: "",
     start_date: "",
-    end_date: "",
     price: "",
   });
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
 
-  // Kurslarni olish
+  // ✅ Kurslarni olish
   const fetchCourses = async () => {
     try {
       const res = await api.get(`/courses/`);
       setCourses(res.data);
     } catch (err) {
-      console.error(err);
+      console.error("Kurslarni olishda xatolik:", err);
       setErrorMsg("Kurslarni olishda xatolik yuz berdi!");
     }
   };
@@ -41,7 +39,7 @@ export default function Courses() {
     fetchCourses();
   }, []);
 
-  // Sana formatini tozalash funksiyasi
+  // ✅ Sana formatini tozalash funksiyasi
   const normalizeDate = (s) => {
     if (!s) return null;
     if (s.includes("T")) return s.split("T")[0];
@@ -54,28 +52,26 @@ export default function Courses() {
     return s;
   };
 
-  // Kurs yaratish
+  // ✅ Kurs yaratish
   const handleCreateCourse = async () => {
     try {
-      if (!newCourse.title || !newCourse.start_date) {
-        setErrorMsg("Iltimos, barcha majburiy maydonlarni to‘ldiring!");
+      if (!newCourse.title.trim() || !newCourse.start_date) {
+        setErrorMsg("Iltimos, kurs nomi va boshlanish sanasini kiriting!");
         return;
       }
 
       const payload = {
         ...newCourse,
         start_date: normalizeDate(newCourse.start_date),
-        end_date: normalizeDate(newCourse.end_date),
         price: parseFloat(newCourse.price) || 0,
       };
 
       const res = await api.post(`/courses/`, payload);
-      setSuccessMsg(`"${res.data.title}" kursi muvaffaqiyatli qo‘shildi!`);
+      setSuccessMsg(`"${res.data.title}" kursi muvaffaqiyatli yaratildi!`);
       setNewCourse({
         title: "",
         description: "",
         start_date: "",
-        end_date: "",
         price: "",
       });
       fetchCourses();
@@ -86,17 +82,23 @@ export default function Courses() {
   };
 
   return (
-    <Box p={3}>
+    <Box
+      sx={{
+        bgcolor: "#f7f8fa",
+        minHeight: "100vh",
+        p: { xs: 2, md: 4 },
+      }}
+    >
       <Typography variant="h4" fontWeight="bold" gutterBottom>
-        Kurslarni boshqarish
+        🎓 Kurslarni boshqarish
       </Typography>
       <Divider sx={{ mb: 3 }} />
 
-      {/* ✅ Yangi kurs yaratish formasi */}
-      <Card sx={{ mb: 4 }}>
+      {/* 🔹 Kurs yaratish formasi */}
+      <Card sx={{ mb: 5, boxShadow: 3, borderRadius: 3 }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
-            Yangi kurs yaratish
+            ✨ Yangi kurs yaratish
           </Typography>
           <Grid container spacing={2}>
             <Grid item xs={12} md={6}>
@@ -135,19 +137,6 @@ export default function Courses() {
               />
             </Grid>
 
-            <Grid item xs={12} md={6}>
-              <TextField
-                label="Tugash sanasi"
-                type="date"
-                fullWidth
-                InputLabelProps={{ shrink: true }}
-                value={newCourse.end_date}
-                onChange={(e) =>
-                  setNewCourse({ ...newCourse, end_date: e.target.value })
-                }
-              />
-            </Grid>
-
             <Grid item xs={12}>
               <TextField
                 label="Tavsif"
@@ -161,13 +150,14 @@ export default function Courses() {
               />
             </Grid>
 
-            <Grid item xs={12} display="flex" justifyContent="flex-end">
+            <Grid item xs={12} textAlign="right">
               <Button
                 variant="contained"
                 color="primary"
+                sx={{ px: 4, py: 1.2, fontWeight: "bold" }}
                 onClick={handleCreateCourse}
               >
-                Kursni qo‘shish
+                💾 Kursni qo‘shish
               </Button>
             </Grid>
           </Grid>
@@ -175,32 +165,50 @@ export default function Courses() {
       </Card>
 
       {/* 📋 Kurslar ro‘yxati */}
-      <Typography variant="h6" gutterBottom>
-        Mavjud kurslar
+      <Typography variant="h5" gutterBottom>
+        📚 Mavjud kurslar
       </Typography>
-      <Grid container spacing={2}>
+
+      <Grid container spacing={3}>
         {courses.length > 0 ? (
           courses.map((course) => (
             <Grid item xs={12} md={6} lg={4} key={course.id}>
-              <Card sx={{ p: 2 }}>
+              <Card
+                sx={{
+                  p: 2,
+                  boxShadow: 2,
+                  borderRadius: 2,
+                  borderLeft: "6px solid #1976d2",
+                  transition: "0.3s",
+                  "&:hover": { boxShadow: 5 },
+                }}
+              >
                 <CardContent>
-                  <Typography variant="h6" color="primary">
+                  <Typography variant="h6" color="primary" fontWeight="bold">
                     {course.title}
                   </Typography>
-                  <Typography variant="body2" sx={{ mt: 1 }}>
-                    {course.description || "Tavsif yo‘q"}
+
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mt: 1 }}
+                  >
+                    {course.description || "Tavsif mavjud emas"}
                   </Typography>
-                  <Typography variant="body2" sx={{ mt: 1 }}>
-                    <b>Boshlanish:</b> {course.start_date || "—"}
+
+                  <Typography sx={{ mt: 1 }}>
+                    📅 <b>Boshlanish:</b> {course.start_date || "—"}
                   </Typography>
-                  <Typography variant="body2">
-                    <b>Narx:</b>{" "}
+
+                  <Typography sx={{ mt: 0.5 }}>
+                    💰 <b>Narx:</b>{" "}
                     {course.price
                       ? `${course.price.toLocaleString()} so‘m`
                       : "—"}
                   </Typography>
-                  <Typography variant="body2">
-                    <b>Yaratgan:</b> {course.creator_name || "Noma’lum"}
+
+                  <Typography sx={{ mt: 0.5 }}>
+                    👤 <b>Yaratgan:</b> {course.creator_name || "Noma’lum"}
                   </Typography>
                 </CardContent>
               </Card>
@@ -219,14 +227,19 @@ export default function Courses() {
         autoHideDuration={3000}
         onClose={() => setSuccessMsg("")}
       >
-        <Alert severity="success">{successMsg}</Alert>
+        <Alert severity="success" sx={{ fontSize: "0.95rem" }}>
+          {successMsg}
+        </Alert>
       </Snackbar>
+
       <Snackbar
         open={!!errorMsg}
-        autoHideDuration={3000}
+        autoHideDuration={4000}
         onClose={() => setErrorMsg("")}
       >
-        <Alert severity="error">{errorMsg}</Alert>
+        <Alert severity="error" sx={{ fontSize: "0.95rem" }}>
+          {errorMsg}
+        </Alert>
       </Snackbar>
     </Box>
   );
