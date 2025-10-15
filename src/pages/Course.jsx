@@ -10,13 +10,17 @@ import {
   Divider,
   Snackbar,
   Alert,
+  MenuItem,
 } from "@mui/material";
 import { api } from "../services/api";
 
 export default function Courses() {
   const [courses, setCourses] = useState([]);
+  const [teachers, setTeachers] = useState([]);
   const [newCourse, setNewCourse] = useState({
     title: "",
+    subject: "",
+    teacher_id: "",
     description: "",
     start_date: "",
     price: "",
@@ -24,10 +28,10 @@ export default function Courses() {
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
 
-  // ✅ Kurslarni olish
+  // ✅ Kurslar ro'yxatini olish
   const fetchCourses = async () => {
     try {
-      const res = await api.get(`/courses/`);
+      const res = await api.get(`/api/courses/`);
       setCourses(res.data);
     } catch (err) {
       console.error("Kurslarni olishda xatolik:", err);
@@ -35,45 +39,51 @@ export default function Courses() {
     }
   };
 
+  // ✅ O‘qituvchilar ro'yxatini olish
+  const fetchTeachers = async () => {
+    try {
+      const res = await api.get(`/users`);
+      setTeachers(res.data.filter((user) => (user.role = "teacher")));
+    } catch (err) {
+      console.error("O‘qituvchilarni olishda xatolik:", err);
+      setErrorMsg("O‘qituvchilarni olishda xatolik yuz berdi!");
+    }
+  };
+
   useEffect(() => {
     fetchCourses();
+    fetchTeachers();
   }, []);
-
-  // ✅ Sana formatini tozalash funksiyasi
-  const normalizeDate = (s) => {
-    if (!s) return null;
-    if (s.includes("T")) return s.split("T")[0];
-    if (/^\d{8}$/.test(s)) {
-      const d = s.slice(0, 2),
-        m = s.slice(2, 4),
-        y = s.slice(4);
-      return `${y}-${m}-${d}`;
-    }
-    return s;
-  };
 
   // ✅ Kurs yaratish
   const handleCreateCourse = async () => {
     try {
-      if (!newCourse.title.trim() || !newCourse.start_date) {
-        setErrorMsg("Iltimos, kurs nomi va boshlanish sanasini kiriting!");
+      if (
+        !newCourse.title.trim() ||
+        !newCourse.start_date ||
+        !newCourse.teacher_id
+      ) {
+        setErrorMsg("Iltimos, barcha majburiy maydonlarni to‘ldiring!");
         return;
       }
 
       const payload = {
         ...newCourse,
-        start_date: normalizeDate(newCourse.start_date),
         price: parseFloat(newCourse.price) || 0,
       };
 
-      const res = await api.post(`/courses/`, payload);
+      const res = await api.post(`/api/courses/`, payload);
       setSuccessMsg(`"${res.data.title}" kursi muvaffaqiyatli yaratildi!`);
+
       setNewCourse({
         title: "",
+        subject: "",
+        teacher_id: "",
         description: "",
         start_date: "",
         price: "",
       });
+
       fetchCourses();
     } catch (err) {
       console.error(err);
@@ -84,7 +94,7 @@ export default function Courses() {
   return (
     <Box
       sx={{
-        bgcolor: "#f7f8fa",
+        bgcolor: "#f9fafc",
         minHeight: "100vh",
         p: { xs: 2, md: 4 },
       }}
@@ -94,22 +104,59 @@ export default function Courses() {
       </Typography>
       <Divider sx={{ mb: 3 }} />
 
-      {/* 🔹 Kurs yaratish formasi */}
+      {/* 🔹 Yangi kurs formasi */}
       <Card sx={{ mb: 5, boxShadow: 3, borderRadius: 3 }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
             ✨ Yangi kurs yaratish
           </Typography>
+
           <Grid container spacing={2}>
             <Grid item xs={12} md={6}>
               <TextField
                 label="Kurs nomi"
                 fullWidth
+                required
                 value={newCourse.title}
                 onChange={(e) =>
                   setNewCourse({ ...newCourse, title: e.target.value })
                 }
               />
+            </Grid>
+
+            <Grid item xs={12} md={6}>
+              <TextField
+                label="Fan nomi"
+                fullWidth
+                required
+                value={newCourse.subject}
+                onChange={(e) =>
+                  setNewCourse({ ...newCourse, subject: e.target.value })
+                }
+              />
+            </Grid>
+
+            <Grid item xs={12} md={6}>
+              <TextField
+                select
+                label="O‘qituvchi"
+                fullWidth
+                required
+                value={newCourse.teacher_id}
+                onChange={(e) =>
+                  setNewCourse({ ...newCourse, teacher_id: e.target.value })
+                }
+              >
+                {teachers.length > 0 ? (
+                  teachers.map((t) => (
+                    <MenuItem key={t.id} value={t.id}>
+                      {t.full_name}
+                    </MenuItem>
+                  ))
+                ) : (
+                  <MenuItem disabled>O‘qituvchilar topilmadi</MenuItem>
+                )}
+              </TextField>
             </Grid>
 
             <Grid item xs={12} md={6}>
@@ -188,12 +235,12 @@ export default function Courses() {
                     {course.title}
                   </Typography>
 
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ mt: 1 }}
-                  >
-                    {course.description || "Tavsif mavjud emas"}
+                  <Typography color="text.secondary">
+                    🧠 <b>Fan:</b> {course.subject || "—"}
+                  </Typography>
+
+                  <Typography sx={{ mt: 1 }}>
+                    👨‍🏫 <b>O‘qituvchi:</b> {course.teacher_name || "—"}
                   </Typography>
 
                   <Typography sx={{ mt: 1 }}>
@@ -207,8 +254,12 @@ export default function Courses() {
                       : "—"}
                   </Typography>
 
-                  <Typography sx={{ mt: 0.5 }}>
-                    👤 <b>Yaratgan:</b> {course.creator_name || "Noma’lum"}
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mt: 1 }}
+                  >
+                    {course.description || "Tavsif mavjud emas"}
                   </Typography>
                 </CardContent>
               </Card>
