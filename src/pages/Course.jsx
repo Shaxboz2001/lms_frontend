@@ -9,237 +9,225 @@ import {
   CardContent,
   Grid,
   Divider,
-  CircularProgress,
+  Snackbar,
+  Alert,
 } from "@mui/material";
-import { api, BASE_URL, config } from "../services/api";
+import { BASE_URL, config } from "../services/api";
 
 export default function Courses() {
-  const [role, setRole] = useState("");
   const [courses, setCourses] = useState([]);
-  const [myCourses, setMyCourses] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [newCourse, setNewCourse] = useState({
     title: "",
-    subject: "",
-    teacher_name: "",
-    price: "",
-    start_date: "",
     description: "",
+    start_date: "",
+    end_date: "",
+    price: "",
   });
+  const [successMsg, setSuccessMsg] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
 
-  const userRole = localStorage.getItem("role");
-
-  useEffect(() => {
-    setRole(userRole);
-  }, [userRole]);
-
+  // Kurslarni olish
   const fetchCourses = async () => {
     try {
-      const res = await api.get(`/courses`);
+      const res = await axios.get(`${BASE_URL}/courses/`, config);
       setCourses(res.data);
     } catch (err) {
-      console.error("Kurslarni olishda xatolik:", err);
-    }
-  };
-
-  const fetchMyCourses = async () => {
-    try {
-      const res = await api.get(`/courses/my`);
-      setMyCourses(res.data);
-    } catch (err) {
-      console.error("Mening kurslarimni olishda xatolik:", err);
+      console.error(err);
+      setErrorMsg("Kurslarni olishda xatolik yuz berdi!");
     }
   };
 
   useEffect(() => {
-    if (role) {
-      fetchCourses();
-      if (role === "student") fetchMyCourses();
-    }
-  }, [role]);
+    fetchCourses();
+  }, []);
 
-  // Manager: kurs yaratish
+  // Sana formatini tozalash funksiyasi
+  const normalizeDate = (s) => {
+    if (!s) return null;
+    if (s.includes("T")) return s.split("T")[0];
+    if (/^\d{8}$/.test(s)) {
+      const d = s.slice(0, 2),
+        m = s.slice(2, 4),
+        y = s.slice(4);
+      return `${y}-${m}-${d}`;
+    }
+    return s;
+  };
+
+  // Kurs yaratish
   const handleCreateCourse = async () => {
-    if (!newCourse.title.trim()) return alert("Kurs nomi kiritilishi kerak!");
     try {
-      await api.post(`/courses`, newCourse);
-      alert("✅ Kurs muvaffaqiyatli yaratildi!");
+      if (!newCourse.title || !newCourse.start_date) {
+        setErrorMsg("Iltimos, barcha majburiy maydonlarni to‘ldiring!");
+        return;
+      }
+
+      const payload = {
+        ...newCourse,
+        start_date: normalizeDate(newCourse.start_date),
+        end_date: normalizeDate(newCourse.end_date),
+        price: parseFloat(newCourse.price) || 0,
+      };
+
+      const res = await axios.post(`${BASE_URL}/courses/`, payload, config);
+      setSuccessMsg(`"${res.data.title}" kursi muvaffaqiyatli qo‘shildi!`);
       setNewCourse({
         title: "",
-        subject: "",
-        teacher_name: "",
-        price: "",
-        start_date: "",
         description: "",
+        start_date: "",
+        end_date: "",
+        price: "",
       });
       fetchCourses();
     } catch (err) {
-      alert(err.response?.data?.detail || "❌ Kurs yaratishda xatolik!");
-    }
-  };
-
-  // Student: kursga qo‘shilish
-  const handleJoinCourse = async (id) => {
-    setLoading(true);
-    try {
-      await api.post(`/courses/${id}/join`, {});
-      alert("✅ Siz kursga muvaffaqiyatli qo‘shildingiz!");
-      fetchMyCourses();
-    } catch (err) {
-      alert(err.response?.data?.detail || "❌ Kursga qo‘shilishda xatolik!");
-    } finally {
-      setLoading(false);
+      console.error(err);
+      setErrorMsg("Kurs yaratishda xatolik yuz berdi!");
     }
   };
 
   return (
-    <Box p={4} sx={{ bgcolor: "#f5f6fa", minHeight: "100vh" }}>
-      {role === "manager" ? (
-        <>
-          {/* === Kurs yaratish bo‘limi === */}
-          <Typography variant="h4" gutterBottom fontWeight="bold">
-            🎓 Yangi kurs yaratish
-          </Typography>
+    <Box p={3}>
+      <Typography variant="h4" fontWeight="bold" gutterBottom>
+        Kurslarni boshqarish
+      </Typography>
+      <Divider sx={{ mb: 3 }} />
 
-          <Card sx={{ p: 3, mb: 5, boxShadow: 3, borderRadius: 3 }}>
-            <Grid container spacing={2}>
-              {[
-                ["title", "Kurs nomi"],
-                ["subject", "Fan nomi"],
-                ["teacher_name", "O‘qituvchi ismi"],
-                ["price", "Narx (so‘m)"],
-                ["start_date", "Boshlanish sanasi"],
-              ].map(([key, label]) => (
-                <Grid item xs={12} sm={6} key={key}>
-                  <TextField
-                    label={label}
-                    variant="outlined"
-                    fullWidth
-                    value={newCourse[key]}
-                    onChange={(e) =>
-                      setNewCourse({ ...newCourse, [key]: e.target.value })
-                    }
-                  />
-                </Grid>
-              ))}
-
-              <Grid item xs={12}>
-                <TextField
-                  label="Kurs haqida qisqacha"
-                  multiline
-                  rows={3}
-                  fullWidth
-                  value={newCourse.description}
-                  onChange={(e) =>
-                    setNewCourse({ ...newCourse, description: e.target.value })
-                  }
-                />
-              </Grid>
-            </Grid>
-
-            <Button
-              variant="contained"
-              color="primary"
-              sx={{ mt: 3 }}
-              onClick={handleCreateCourse}
-            >
-              💾 Kursni yaratish
-            </Button>
-          </Card>
-
-          {/* === Barcha kurslar (reklama) === */}
-          <Typography variant="h5" gutterBottom>
-            📢 Barcha kurslar (reklama sifatida)
+      {/* ✅ Yangi kurs yaratish formasi */}
+      <Card sx={{ mb: 4 }}>
+        <CardContent>
+          <Typography variant="h6" gutterBottom>
+            Yangi kurs yaratish
           </Typography>
           <Grid container spacing={2}>
-            {courses.map((c) => (
-              <Grid item xs={12} md={6} key={c.id}>
-                <Card sx={{ p: 3, borderLeft: "6px solid #1976d2" }}>
-                  <Typography variant="h6" fontWeight="bold">
-                    {c.title}
-                  </Typography>
-                  <Typography color="text.secondary">{c.subject}</Typography>
-                  <Typography sx={{ mt: 1 }}>
-                    👨‍🏫 {c.teacher_name} | 💰 {c.price} so‘m
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    📅 {c.start_date}
-                  </Typography>
-                  <Typography sx={{ mt: 1 }}>{c.description}</Typography>
-                </Card>
-              </Grid>
-            ))}
-          </Grid>
-        </>
-      ) : (
-        <>
-          {/* === Student uchun === */}
-          <Typography variant="h4" gutterBottom fontWeight="bold">
-            🎓 Mening kurslarim
-          </Typography>
-
-          {myCourses.length === 0 ? (
-            <Typography color="text.secondary" sx={{ mb: 3 }}>
-              Siz hali hech qanday kursga qo‘shilmadingiz.
-            </Typography>
-          ) : (
-            <Grid container spacing={2} sx={{ mb: 4 }}>
-              {myCourses.map((c) => (
-                <Grid item xs={12} md={6} key={c.id}>
-                  <Card sx={{ p: 3, borderLeft: "6px solid #1976d2" }}>
-                    <Typography variant="h6" fontWeight="bold">
-                      {c.title}
-                    </Typography>
-                    <Typography>👨‍🏫 {c.teacher_name}</Typography>
-                    <Typography color="text.secondary">
-                      {c.subject} | 📅 {c.start_date}
-                    </Typography>
-                  </Card>
-                </Grid>
-              ))}
+            <Grid item xs={12} md={6}>
+              <TextField
+                label="Kurs nomi"
+                fullWidth
+                value={newCourse.title}
+                onChange={(e) =>
+                  setNewCourse({ ...newCourse, title: e.target.value })
+                }
+              />
             </Grid>
-          )}
 
-          <Divider sx={{ mb: 3 }} />
+            <Grid item xs={12} md={6}>
+              <TextField
+                label="Narxi (so‘m)"
+                type="number"
+                fullWidth
+                value={newCourse.price}
+                onChange={(e) =>
+                  setNewCourse({ ...newCourse, price: e.target.value })
+                }
+              />
+            </Grid>
 
-          {/* === Reklama kurslari === */}
-          <Typography variant="h5" gutterBottom>
-            📢 Yangi kurslar (reklama)
-          </Typography>
+            <Grid item xs={12} md={6}>
+              <TextField
+                label="Boshlanish sanasi"
+                type="date"
+                fullWidth
+                InputLabelProps={{ shrink: true }}
+                value={newCourse.start_date}
+                onChange={(e) =>
+                  setNewCourse({ ...newCourse, start_date: e.target.value })
+                }
+              />
+            </Grid>
 
-          <Grid container spacing={2}>
-            {courses.map((c) => (
-              <Grid item xs={12} md={6} key={c.id}>
-                <Card sx={{ p: 3 }}>
-                  <Typography variant="h6" fontWeight="bold">
-                    {c.title}
-                  </Typography>
-                  <Typography color="text.secondary">{c.subject}</Typography>
-                  <Typography>
-                    👨‍🏫 {c.teacher_name} | 💰 {c.price} so‘m
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    📅 {c.start_date}
-                  </Typography>
-                  <Typography sx={{ mt: 1 }}>{c.description}</Typography>
-                  <Button
-                    variant="contained"
-                    sx={{ mt: 2 }}
-                    onClick={() => handleJoinCourse(c.id)}
-                    disabled={loading}
-                  >
-                    {loading ? (
-                      <CircularProgress size={22} />
-                    ) : (
-                      "Kursga qo‘shilish"
-                    )}
-                  </Button>
-                </Card>
-              </Grid>
-            ))}
+            <Grid item xs={12} md={6}>
+              <TextField
+                label="Tugash sanasi"
+                type="date"
+                fullWidth
+                InputLabelProps={{ shrink: true }}
+                value={newCourse.end_date}
+                onChange={(e) =>
+                  setNewCourse({ ...newCourse, end_date: e.target.value })
+                }
+              />
+            </Grid>
+
+            <Grid item xs={12}>
+              <TextField
+                label="Tavsif"
+                fullWidth
+                multiline
+                rows={3}
+                value={newCourse.description}
+                onChange={(e) =>
+                  setNewCourse({ ...newCourse, description: e.target.value })
+                }
+              />
+            </Grid>
+
+            <Grid item xs={12} display="flex" justifyContent="flex-end">
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={handleCreateCourse}
+              >
+                Kursni qo‘shish
+              </Button>
+            </Grid>
           </Grid>
-        </>
-      )}
+        </CardContent>
+      </Card>
+
+      {/* 📋 Kurslar ro‘yxati */}
+      <Typography variant="h6" gutterBottom>
+        Mavjud kurslar
+      </Typography>
+      <Grid container spacing={2}>
+        {courses.length > 0 ? (
+          courses.map((course) => (
+            <Grid item xs={12} md={6} lg={4} key={course.id}>
+              <Card sx={{ p: 2 }}>
+                <CardContent>
+                  <Typography variant="h6" color="primary">
+                    {course.title}
+                  </Typography>
+                  <Typography variant="body2" sx={{ mt: 1 }}>
+                    {course.description || "Tavsif yo‘q"}
+                  </Typography>
+                  <Typography variant="body2" sx={{ mt: 1 }}>
+                    <b>Boshlanish:</b> {course.start_date || "—"}
+                  </Typography>
+                  <Typography variant="body2">
+                    <b>Narx:</b>{" "}
+                    {course.price
+                      ? `${course.price.toLocaleString()} so‘m`
+                      : "—"}
+                  </Typography>
+                  <Typography variant="body2">
+                    <b>Yaratgan:</b> {course.creator_name || "Noma’lum"}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          ))
+        ) : (
+          <Typography variant="body1" sx={{ ml: 2 }}>
+            Hozircha kurs mavjud emas.
+          </Typography>
+        )}
+      </Grid>
+
+      {/* ✅ Snackbarlar */}
+      <Snackbar
+        open={!!successMsg}
+        autoHideDuration={3000}
+        onClose={() => setSuccessMsg("")}
+      >
+        <Alert severity="success">{successMsg}</Alert>
+      </Snackbar>
+      <Snackbar
+        open={!!errorMsg}
+        autoHideDuration={3000}
+        onClose={() => setErrorMsg("")}
+      >
+        <Alert severity="error">{errorMsg}</Alert>
+      </Snackbar>
     </Box>
   );
 }
