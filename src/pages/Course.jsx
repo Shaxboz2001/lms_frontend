@@ -12,7 +12,7 @@ import {
   Snackbar,
   Alert,
 } from "@mui/material";
-import { BASE_URL, config } from "../services/api";
+import { api } from "../services/api";
 
 export default function Courses() {
   const [courses, setCourses] = useState([]);
@@ -29,7 +29,7 @@ export default function Courses() {
   // Kurslarni olish
   const fetchCourses = async () => {
     try {
-      const res = await axios.get(`${BASE_URL}/courses/`, config);
+      const res = await api.get(`/courses/`);
       setCourses(res.data);
     } catch (err) {
       console.error(err);
@@ -69,7 +69,7 @@ export default function Courses() {
         price: parseFloat(newCourse.price) || 0,
       };
 
-      const res = await axios.post(`${BASE_URL}/courses/`, payload, config);
+      const res = await api.post(`/courses/`, payload);
       setSuccessMsg(`"${res.data.title}" kursi muvaffaqiyatli qo‘shildi!`);
       setNewCourse({
         title: "",
