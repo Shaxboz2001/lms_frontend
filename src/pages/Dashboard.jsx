@@ -20,6 +20,11 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
+  TableRow,
+  TableCell,
+  TableHead,
+  Table,
+  TableBody,
 } from "@mui/material";
 import { Routes, Route, useNavigate } from "react-router-dom";
 import { api } from "../services/api";
@@ -258,29 +263,71 @@ const Dashboard = ({ role }) => {
                     </>
                   ) : role === "student" ? (
                     <>
-                      <Grid item xs={12} md={4}>
+                      {/* ✅ Test natijalari */}
+                      <Grid item xs={12} md={6}>
                         <Card>
                           <CardContent>
                             <Typography variant="h6">Test baholari</Typography>
                             <Typography variant="h4">
-                              {stats.tests?.average || "N/A"}
+                              {stats.tests?.average || 0}%
                             </Typography>
                             <Typography variant="body2">
-                              Oxirgi test: {stats.tests?.last || "-"}
+                              Oxirgi test: {stats.tests?.last || 0}%
                             </Typography>
+
+                            {/* Tafsilotlar jadvali */}
+                            {stats.tests?.details?.length > 0 && (
+                              <Box mt={2}>
+                                <Typography variant="subtitle1" gutterBottom>
+                                  Test tafsilotlari:
+                                </Typography>
+                                <Table size="small">
+                                  <TableHead>
+                                    <TableRow>
+                                      <TableCell>Test nomi</TableCell>
+                                      <TableCell>Sana</TableCell>
+                                      <TableCell align="center">
+                                        To‘g‘ri
+                                      </TableCell>
+                                      <TableCell align="center">Jami</TableCell>
+                                      <TableCell align="center">Ball</TableCell>
+                                    </TableRow>
+                                  </TableHead>
+                                  <TableBody>
+                                    {stats.tests.details.map((t, i) => (
+                                      <TableRow key={i}>
+                                        <TableCell>{t.test_name}</TableCell>
+                                        <TableCell>{t.submitted_at}</TableCell>
+                                        <TableCell align="center">
+                                          {t.correct}
+                                        </TableCell>
+                                        <TableCell align="center">
+                                          {t.total_questions}
+                                        </TableCell>
+                                        <TableCell align="center">
+                                          {t.score}%
+                                        </TableCell>
+                                      </TableRow>
+                                    ))}
+                                  </TableBody>
+                                </Table>
+                              </Box>
+                            )}
                           </CardContent>
                         </Card>
                       </Grid>
 
-                      <Grid item xs={12} md={4}>
+                      {/* ✅ Dars qatnashuvi */}
+                      <Grid item xs={12} md={3}>
                         <Card>
                           <CardContent>
                             <Typography variant="h6">
                               Dars qatnashuvi
                             </Typography>
                             <Typography variant="h4">
-                              {stats.attendance?.attended || 0}/
-                              {stats.attendance?.total || 0}
+                              {stats.attendance?.attended || 0} /{" "}
+                              {(stats.attendance?.attended || 0) +
+                                (stats.attendance?.missed || 0)}
                             </Typography>
                             <Typography variant="body2">
                               Qatnashmagan: {stats.attendance?.missed || 0}
@@ -289,17 +336,18 @@ const Dashboard = ({ role }) => {
                         </Card>
                       </Grid>
 
-                      <Grid item xs={12} md={4}>
+                      {/* ✅ Profil */}
+                      <Grid item xs={12} md={3}>
                         <Card onClick={() => navigate("/dashboard/myprofile")}>
                           <CardContent>
                             <Typography variant="h6">
                               Profil ma’lumotlari
                             </Typography>
                             <Typography variant="body2">
-                              {user?.full_name}
+                              {stats.profile?.full_name || user?.full_name}
                             </Typography>
                             <Typography variant="body2">
-                              {user?.phone}
+                              {stats.profile?.phone || user?.phone}
                             </Typography>
                           </CardContent>
                         </Card>
