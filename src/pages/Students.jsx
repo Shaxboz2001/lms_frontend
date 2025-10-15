@@ -18,14 +18,16 @@ import {
   TableRow,
   TableCell,
   Paper,
+  Tabs,
+  Tab,
 } from "@mui/material";
-import axios from "axios";
-import { api, BASE_URL, config } from "../services/api";
+import { api } from "../services/api";
 
 const Students = () => {
   const [students, setStudents] = useState([]);
   const [open, setOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState(null);
+  const [selectedTab, setSelectedTab] = useState("all");
   const [form, setForm] = useState({
     username: "",
     full_name: "",
@@ -34,7 +36,7 @@ const Students = () => {
     subject: "",
     fee: "",
     age: "",
-    password: "1234", // default password
+    password: "1234",
     status: "interested",
   });
 
@@ -52,12 +54,18 @@ const Students = () => {
     fetchStudents();
   }, []);
 
+  // 🔹 Filtrlangan studentlar
+  const filteredStudents =
+    selectedTab === "all"
+      ? students
+      : students.filter((s) => s.status === selectedTab);
+
   // 🔹 Student qo‘shish yoki tahrirlash
   const handleSave = async () => {
     try {
       const payload = {
         ...form,
-        role: "student", // backendda role student bo‘ladi
+        role: "student",
       };
 
       if (editingStudent) {
@@ -65,6 +73,7 @@ const Students = () => {
       } else {
         await api.post(`/students`, payload);
       }
+
       fetchStudents();
       handleClose();
     } catch (err) {
@@ -127,6 +136,24 @@ const Students = () => {
         🎓 Studentlar ro‘yxati
       </Typography>
 
+      {/* 🔹 Tabs */}
+      <Paper sx={{ mb: 2 }}>
+        <Tabs
+          value={selectedTab}
+          onChange={(e, v) => setSelectedTab(v)}
+          textColor="primary"
+          indicatorColor="primary"
+          variant="scrollable"
+          scrollButtons="auto"
+        >
+          <Tab label="Hammasi" value="all" />
+          <Tab label="Lidlar" value="interested" />
+          <Tab label="Faollar" value="studying" />
+          <Tab label="Ketganlar" value="left" />
+          <Tab label="Bitirganlar" value="graduated" />
+        </Tabs>
+      </Paper>
+
       <Button variant="contained" color="primary" onClick={() => handleOpen()}>
         ➕ Student qo‘shish
       </Button>
@@ -147,7 +174,7 @@ const Students = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {students.map((student) => (
+            {filteredStudents.map((student) => (
               <TableRow key={student.id}>
                 <TableCell>{student.id}</TableCell>
                 <TableCell>{student.full_name}</TableCell>
@@ -156,7 +183,15 @@ const Students = () => {
                 <TableCell>{student.subject}</TableCell>
                 <TableCell>{student.fee}</TableCell>
                 <TableCell>{student.age}</TableCell>
-                <TableCell>{student.status}</TableCell>
+                <TableCell>
+                  {student.status === "interested"
+                    ? "Lid"
+                    : student.status === "studying"
+                    ? "Faol"
+                    : student.status === "left"
+                    ? "Ketgan"
+                    : "Bitirgan"}
+                </TableCell>
                 <TableCell>
                   <Button
                     size="small"
@@ -178,6 +213,14 @@ const Students = () => {
                 </TableCell>
               </TableRow>
             ))}
+
+            {filteredStudents.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={9} align="center">
+                  Hech qanday student topilmadi
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
       </Paper>
@@ -257,10 +300,10 @@ const Students = () => {
               value={form.status}
               onChange={(e) => setForm({ ...form, status: e.target.value })}
             >
-              <MenuItem value="interested">Interested</MenuItem>
-              <MenuItem value="studying">Studying</MenuItem>
-              <MenuItem value="left">Left</MenuItem>
-              <MenuItem value="graduated">Graduated</MenuItem>
+              <MenuItem value="interested">Lid</MenuItem>
+              <MenuItem value="studying">Faol</MenuItem>
+              <MenuItem value="left">Ketgan</MenuItem>
+              <MenuItem value="graduated">Bitirgan</MenuItem>
             </Select>
           </FormControl>
         </DialogContent>
