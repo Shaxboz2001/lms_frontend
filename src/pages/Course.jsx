@@ -43,7 +43,7 @@ export default function Courses() {
   const fetchTeachers = async () => {
     try {
       const res = await api.get(`/users`);
-      setTeachers(res.data.filter((user) => (user.role = "teacher")));
+      setTeachers(res.data.filter((user) => user.role === "teacher"));
     } catch (err) {
       console.error("O‘qituvchilarni olishda xatolik:", err);
       setErrorMsg("O‘qituvchilarni olishda xatolik yuz berdi!");
@@ -72,7 +72,7 @@ export default function Courses() {
         price: parseFloat(newCourse.price) || 0,
       };
 
-      const res = await api.post(`/api/courses/`, payload);
+      const res = await api.post(`/courses/`, payload);
       setSuccessMsg(`"${res.data.title}" kursi muvaffaqiyatli yaratildi!`);
 
       setNewCourse({
