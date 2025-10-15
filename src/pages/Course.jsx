@@ -143,6 +143,7 @@ export default function Courses() {
                 fullWidth
                 required
                 value={newCourse.teacher_id}
+                minRows={3}
                 onChange={(e) =>
                   setNewCourse({ ...newCourse, teacher_id: e.target.value })
                 }
