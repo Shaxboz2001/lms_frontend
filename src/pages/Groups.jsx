@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
 import {
   Box,
   Typography,
@@ -23,7 +22,6 @@ export default function Groups() {
   const [courses, setCourses] = useState([]);
   const [teachers, setTeachers] = useState([]);
   const [students, setStudents] = useState([]);
-
   const [open, setOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
 
@@ -35,34 +33,63 @@ export default function Groups() {
     student_id: "",
   });
 
+  // -----------------------------
+  // FETCH groups + courses
+  // -----------------------------
   useEffect(() => {
     fetchGroups();
-    api.get(`/groups/courses`).then((res) => setCourses(res.data));
+    fetchCourses();
   }, []);
 
   const fetchGroups = async () => {
-    const res = await api.get(`/groups`);
+    const res = await api.get("/groups/");
     setGroups(res.data);
   };
 
+  const fetchCourses = async () => {
+    const res = await api.get("/groups/courses");
+    setCourses(res.data);
+  };
+
+  // -----------------------------
+  // CHANGE: on course select
+  // -----------------------------
   const handleCourseChange = async (courseId) => {
     setFormData({ ...formData, course_id: courseId });
-    const teachersRes = await axios.api(`/groups/teachers/${courseId}`);
-    const studentsRes = await api.get(`/groups/students/${courseId}`);
-    setTeachers(teachersRes.data);
-    setStudents(studentsRes.data);
-  };
 
-  const handleSave = async () => {
-    if (editMode) {
-      await api.put(`/groups/${formData.id}`, formData);
-    } else {
-      await api.post(`/groups`, formData);
+    try {
+      const [teachersRes, studentsRes] = await Promise.all([
+        api.get(`/groups/teachers/${courseId}`),
+        api.get(`/groups/students/${courseId}`),
+      ]);
+
+      setTeachers(teachersRes.data);
+      setStudents(studentsRes.data);
+    } catch (err) {
+      console.error("Kurs uchun ma’lumotlarni olishda xato:", err);
     }
-    setOpen(false);
-    fetchGroups();
   };
 
+  // -----------------------------
+  // SAVE (create or edit)
+  // -----------------------------
+  const handleSave = async () => {
+    try {
+      if (editMode) {
+        await api.put(`/groups/${formData.id}`, formData);
+      } else {
+        await api.post("/groups/", formData);
+      }
+      setOpen(false);
+      fetchGroups();
+    } catch (err) {
+      console.error("Saqlashda xato:", err.response?.data || err.message);
+    }
+  };
+
+  // -----------------------------
+  // DELETE
+  // -----------------------------
   const handleDelete = async (id) => {
     if (window.confirm("Rostdan ham o‘chirasizmi?")) {
       await api.delete(`/groups/${id}`);
@@ -70,6 +97,9 @@ export default function Groups() {
     }
   };
 
+  // -----------------------------
+  // EDIT / CREATE modal
+  // -----------------------------
   const handleEdit = (group) => {
     setFormData(group);
     setEditMode(true);
@@ -88,6 +118,9 @@ export default function Groups() {
     setOpen(true);
   };
 
+  // -----------------------------
+  // UI
+  // -----------------------------
   return (
     <Box sx={{ p: 3 }}>
       <Typography variant="h5" gutterBottom>
@@ -132,7 +165,7 @@ export default function Groups() {
         </TableBody>
       </Table>
 
-      {/* Modal (Create/Edit) */}
+      {/* MODAL */}
       <Dialog open={open} onClose={() => setOpen(false)} fullWidth>
         <DialogTitle>
           {editMode ? "Guruhni tahrirlash" : "Yangi guruh yaratish"}
