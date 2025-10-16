@@ -1,291 +1,208 @@
 import React, { useEffect, useState } from "react";
+import axios from "axios";
 import {
   Box,
   Typography,
-  Paper,
+  TextField,
+  MenuItem,
+  Button,
   Table,
   TableHead,
   TableBody,
   TableRow,
   TableCell,
-  TextField,
-  Button,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  CircularProgress,
-  Chip,
-  Stack,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 import { api } from "../services/api";
 
-const Groups = () => {
+export default function Groups() {
   const [groups, setGroups] = useState([]);
-  const [students, setStudents] = useState([]);
+  const [courses, setCourses] = useState([]);
   const [teachers, setTeachers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [students, setStudents] = useState([]);
 
-  // Form state
-  const [form, setForm] = useState({
+  const [open, setOpen] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+
+  const [formData, setFormData] = useState({
+    id: null,
     name: "",
-    description: "",
-    student_ids: [],
-    teacher_ids: [],
+    course_id: "",
+    teacher_id: "",
+    student_id: "",
   });
 
-  // ---------------------------
-  // Fetch Users (students & teachers)
-  // ---------------------------
-  const fetchUsers = async () => {
-    try {
-      const res = await api.get("/users/");
-      const all = res.data;
-      setStudents(all.filter((u) => u.role === "student"));
-      setTeachers(all.filter((u) => u.role === "teacher"));
-    } catch (err) {
-      console.error("Users fetch error:", err);
-    }
-  };
-
-  // ---------------------------
-  // Fetch Groups
-  // ---------------------------
-  const fetchGroups = async () => {
-    setLoading(true);
-    try {
-      const res = await api.get("/groups/");
-      setGroups(res.data);
-    } catch (err) {
-      console.error("Groups fetch error:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchUsers();
     fetchGroups();
+    api.get(`/groups/courses`).then((res) => setCourses(res.data));
   }, []);
 
-  // ---------------------------
-  // Create Group
-  // ---------------------------
-  const handleCreate = async () => {
-    if (!form.name) {
-      alert("Guruh nomini kiriting!");
-      return;
-    }
-
-    try {
-      await api.post("/groups/", form);
-      setForm({
-        name: "",
-        description: "",
-        student_ids: [],
-        teacher_ids: [],
-      });
-      fetchGroups();
-    } catch (err) {
-      console.error("Create error:", err);
-      alert(err.response?.data?.detail || "Xatolik yuz berdi!");
-    }
+  const fetchGroups = async () => {
+    const res = await api.get(`/groups`);
+    setGroups(res.data);
   };
 
-  // ---------------------------
-  // Delete Group
-  // ---------------------------
-  const handleDelete = async (id) => {
-    if (!window.confirm("Rostdan ham o‘chirmoqchimisiz?")) return;
+  const handleCourseChange = async (courseId) => {
+    setFormData({ ...formData, course_id: courseId });
+    const teachersRes = await axios.api(`/groups/teachers/${courseId}`);
+    const studentsRes = await api.get(`/groups/students/${courseId}`);
+    setTeachers(teachersRes.data);
+    setStudents(studentsRes.data);
+  };
 
-    try {
+  const handleSave = async () => {
+    if (editMode) {
+      await api.put(`/groups/${formData.id}`, formData);
+    } else {
+      await api.post(`/groups`, formData);
+    }
+    setOpen(false);
+    fetchGroups();
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm("Rostdan ham o‘chirasizmi?")) {
       await api.delete(`/groups/${id}`);
       fetchGroups();
-    } catch (err) {
-      console.error("Delete error:", err);
-      alert(err.response?.data?.detail || "O‘chirishda xatolik!");
     }
   };
 
-  // ---------------------------
-  // Helpers
-  // ---------------------------
-  const getStudentNames = (group) =>
-    group.students?.map((s) => s.full_name || s.username).join(", ") || "-";
+  const handleEdit = (group) => {
+    setFormData(group);
+    setEditMode(true);
+    setOpen(true);
+  };
 
-  const getTeacherNames = (group) =>
-    group.teachers?.map((t) => t.full_name || t.username).join(", ") || "-";
-
-  // ---------------------------
-  // Render
-  // ---------------------------
-  if (loading)
-    return (
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          height: "70vh",
-        }}
-      >
-        <CircularProgress />
-      </Box>
-    );
+  const handleCreate = () => {
+    setFormData({
+      id: null,
+      name: "",
+      course_id: "",
+      teacher_id: "",
+      student_id: "",
+    });
+    setEditMode(false);
+    setOpen(true);
+  };
 
   return (
-    <Box sx={{ p: 4 }}>
-      <Typography variant="h5" fontWeight="bold" mb={3}>
-        📘 Guruhlar boshqaruvi
+    <Box sx={{ p: 3 }}>
+      <Typography variant="h5" gutterBottom>
+        Guruhlar ro‘yxati
       </Typography>
 
-      {/* Yangi guruh yaratish */}
-      <Paper sx={{ p: 3, mb: 4 }}>
-        <Typography variant="h6" mb={2}>
-          ➕ Yangi guruh yaratish
-        </Typography>
+      <Button variant="contained" onClick={handleCreate} sx={{ mb: 2 }}>
+        + Yangi guruh
+      </Button>
 
-        <Stack spacing={2}>
+      <Table>
+        <TableHead>
+          <TableRow>
+            <TableCell>Nom</TableCell>
+            <TableCell>Kurs</TableCell>
+            <TableCell>O‘qituvchi</TableCell>
+            <TableCell>Talaba</TableCell>
+            <TableCell>Amallar</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {groups.map((g) => (
+            <TableRow key={g.id}>
+              <TableCell>{g.name}</TableCell>
+              <TableCell>{g.course_name}</TableCell>
+              <TableCell>{g.teacher_name}</TableCell>
+              <TableCell>{g.student_name}</TableCell>
+              <TableCell>
+                <Button size="small" onClick={() => handleEdit(g)}>
+                  Edit
+                </Button>
+                <Button
+                  color="error"
+                  size="small"
+                  onClick={() => handleDelete(g.id)}
+                >
+                  Delete
+                </Button>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+
+      {/* Modal (Create/Edit) */}
+      <Dialog open={open} onClose={() => setOpen(false)} fullWidth>
+        <DialogTitle>
+          {editMode ? "Guruhni tahrirlash" : "Yangi guruh yaratish"}
+        </DialogTitle>
+        <DialogContent>
           <TextField
             label="Guruh nomi"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
             fullWidth
+            margin="normal"
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
           />
 
           <TextField
-            label="Tavsif (ixtiyoriy)"
-            value={form.description}
-            onChange={(e) => setForm({ ...form, description: e.target.value })}
+            select
+            label="Kursni tanlang"
             fullWidth
-            multiline
-            rows={2}
-          />
+            margin="normal"
+            value={formData.course_id}
+            onChange={(e) => handleCourseChange(e.target.value)}
+          >
+            {courses.map((c) => (
+              <MenuItem key={c.id} value={c.id}>
+                {c.title}
+              </MenuItem>
+            ))}
+          </TextField>
 
-          <FormControl fullWidth>
-            <InputLabel>O‘qituvchilar</InputLabel>
-            <Select
-              multiple
-              value={form.teacher_ids}
-              onChange={(e) =>
-                setForm({ ...form, teacher_ids: e.target.value })
-              }
-              renderValue={(selected) =>
-                selected
-                  .map((id) => teachers.find((t) => t.id === id)?.full_name)
-                  .join(", ")
-              }
-            >
-              {teachers.map((t) => (
-                <MenuItem key={t.id} value={t.id}>
-                  {t.full_name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+          <TextField
+            select
+            label="O‘qituvchi"
+            fullWidth
+            margin="normal"
+            value={formData.teacher_id}
+            onChange={(e) =>
+              setFormData({ ...formData, teacher_id: e.target.value })
+            }
+          >
+            {teachers.map((t) => (
+              <MenuItem key={t.id} value={t.id}>
+                {t.full_name}
+              </MenuItem>
+            ))}
+          </TextField>
 
-          <FormControl fullWidth>
-            <InputLabel>Talabalar</InputLabel>
-            <Select
-              multiple
-              value={form.student_ids}
-              onChange={(e) =>
-                setForm({ ...form, student_ids: e.target.value })
-              }
-              renderValue={(selected) =>
-                selected
-                  .map((id) => students.find((s) => s.id === id)?.full_name)
-                  .join(", ")
-              }
-            >
-              {students.map((s) => (
-                <MenuItem key={s.id} value={s.id}>
-                  {s.full_name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+          <TextField
+            select
+            label="Talaba"
+            fullWidth
+            margin="normal"
+            value={formData.student_id}
+            onChange={(e) =>
+              setFormData({ ...formData, student_id: e.target.value })
+            }
+          >
+            {students.map((s) => (
+              <MenuItem key={s.id} value={s.id}>
+                {s.full_name}
+              </MenuItem>
+            ))}
+          </TextField>
+        </DialogContent>
 
-          <Button variant="contained" onClick={handleCreate}>
+        <DialogActions>
+          <Button onClick={() => setOpen(false)}>Bekor qilish</Button>
+          <Button variant="contained" onClick={handleSave}>
             Saqlash
           </Button>
-        </Stack>
-      </Paper>
-
-      {/* Guruhlar jadvali */}
-      <Paper sx={{ p: 3 }}>
-        <Typography variant="h6" mb={2}>
-          📋 Guruhlar ro‘yxati
-        </Typography>
-
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>ID</TableCell>
-              <TableCell>Nomi</TableCell>
-              <TableCell>O‘qituvchilar</TableCell>
-              <TableCell>Talabalar</TableCell>
-              <TableCell>Tavsif</TableCell>
-              <TableCell>Amallar</TableCell>
-            </TableRow>
-          </TableHead>
-
-          <TableBody>
-            {groups.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={6} align="center">
-                  Guruhlar mavjud emas
-                </TableCell>
-              </TableRow>
-            )}
-
-            {groups.map((g) => (
-              <TableRow key={g.id}>
-                <TableCell>{g.id}</TableCell>
-                <TableCell>{g.name}</TableCell>
-                <TableCell>
-                  {g.teachers?.length > 0
-                    ? g.teachers.map((t) => (
-                        <Chip
-                          key={t.id}
-                          label={t.full_name || t.username}
-                          color="primary"
-                          size="small"
-                          sx={{ mr: 0.5 }}
-                        />
-                      ))
-                    : "-"}
-                </TableCell>
-                <TableCell>
-                  {g.students?.length > 0
-                    ? g.students.map((s) => (
-                        <Chip
-                          key={s.id}
-                          label={s.full_name || s.username}
-                          color="secondary"
-                          size="small"
-                          sx={{ mr: 0.5 }}
-                        />
-                      ))
-                    : "-"}
-                </TableCell>
-                <TableCell>{g.description || "-"}</TableCell>
-                <TableCell>
-                  <Button
-                    color="error"
-                    size="small"
-                    onClick={() => handleDelete(g.id)}
-                  >
-                    O‘chirish
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </Paper>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
-};
-
-export default Groups;
+}
