@@ -1,61 +1,63 @@
-// src/pages/Guruhlar.js
 import React, { useEffect, useState } from "react";
-import axios from "axios";
 import {
   Box,
-  Paper,
   Typography,
+  Paper,
   Table,
   TableHead,
   TableBody,
-  TableCell,
   TableRow,
-  Button,
+  TableCell,
   TextField,
+  Button,
+  FormControl,
+  InputLabel,
   Select,
   MenuItem,
-  InputLabel,
-  FormControl,
+  CircularProgress,
+  Chip,
+  Stack,
 } from "@mui/material";
-
-// Import BASE_URL va config
-import { api, BASE_URL, config } from "../services/api";
+import { api } from "../services/api";
 
 const Groups = () => {
   const [groups, setGroups] = useState([]);
-  const [allStudents, setAllStudents] = useState([]);
-  const [allTeachers, setAllTeachers] = useState([]);
+  const [students, setStudents] = useState([]);
+  const [teachers, setTeachers] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Form state
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [selectedStudents, setSelectedStudents] = useState([]);
-  const [selectedTeachers, setSelectedTeachers] = useState([]);
+  const [form, setForm] = useState({
+    name: "",
+    description: "",
+    student_ids: [],
+    teacher_ids: [],
+  });
 
-  // -------------------
-  // Fetch all users
-  // -------------------
+  // ---------------------------
+  // Fetch Users (students & teachers)
+  // ---------------------------
   const fetchUsers = async () => {
     try {
-      const res = await api.get(`/users/`);
-      setAllStudents(res.data.filter((u) => u.role === "student"));
-      setAllTeachers(res.data.filter((u) => u.role === "teacher"));
+      const res = await api.get("/users/");
+      const all = res.data;
+      setStudents(all.filter((u) => u.role === "student"));
+      setTeachers(all.filter((u) => u.role === "teacher"));
     } catch (err) {
-      console.error("Users fetch error:", err.response?.data || err.message);
+      console.error("Users fetch error:", err);
     }
   };
 
-  // -------------------
-  // Fetch all groups
-  // -------------------
+  // ---------------------------
+  // Fetch Groups
+  // ---------------------------
   const fetchGroups = async () => {
     setLoading(true);
     try {
-      const res = await api.get(`/groups/`);
+      const res = await api.get("/groups/");
       setGroups(res.data);
     } catch (err) {
-      console.error("Groups fetch error:", err.response?.data || err.message);
+      console.error("Groups fetch error:", err);
     } finally {
       setLoading(false);
     }
@@ -66,138 +68,214 @@ const Groups = () => {
     fetchGroups();
   }, []);
 
-  // -------------------
-  // Create new group
-  // -------------------
+  // ---------------------------
+  // Create Group
+  // ---------------------------
   const handleCreate = async () => {
+    if (!form.name) {
+      alert("Guruh nomini kiriting!");
+      return;
+    }
+
     try {
-      await api.post(`/groups/`, {
-        name,
-        description,
-        student_ids: selectedStudents,
-        teacher_ids: selectedTeachers,
+      await api.post("/groups/", form);
+      setForm({
+        name: "",
+        description: "",
+        student_ids: [],
+        teacher_ids: [],
       });
-      setName("");
-      setDescription("");
-      setSelectedStudents([]);
-      setSelectedTeachers([]);
       fetchGroups();
     } catch (err) {
-      console.error("Create group error:", err.response?.data || err.message);
-      alert(err.response?.data?.detail || "Xatolik yuz berdi");
+      console.error("Create error:", err);
+      alert(err.response?.data?.detail || "Xatolik yuz berdi!");
     }
   };
 
-  // -------------------
-  // Delete group
-  // -------------------
+  // ---------------------------
+  // Delete Group
+  // ---------------------------
   const handleDelete = async (id) => {
+    if (!window.confirm("Rostdan ham o‘chirmoqchimisiz?")) return;
+
     try {
       await api.delete(`/groups/${id}`);
       fetchGroups();
     } catch (err) {
-      console.error("Delete group error:", err.response?.data || err.message);
-      alert(err.response?.data?.detail || "Xatolik yuz berdi");
+      console.error("Delete error:", err);
+      alert(err.response?.data?.detail || "O‘chirishda xatolik!");
     }
   };
 
-  if (loading) return <Typography>Yuklanmoqda...</Typography>;
+  // ---------------------------
+  // Helpers
+  // ---------------------------
+  const getStudentNames = (group) =>
+    group.students?.map((s) => s.full_name || s.username).join(", ") || "-";
 
-  // -------------------
-  // Helper functions
-  // -------------------
-  const getStudentNames = (ids) =>
-    ids
-      .map((id) => allStudents.find((s) => s.id === id)?.username)
-      .filter(Boolean)
-      .join(", ");
+  const getTeacherNames = (group) =>
+    group.teachers?.map((t) => t.full_name || t.username).join(", ") || "-";
 
-  const getTeacherNames = (ids) =>
-    ids
-      .map((id) => allTeachers.find((t) => t.id === id)?.username)
-      .filter(Boolean)
-      .join(", ");
+  // ---------------------------
+  // Render
+  // ---------------------------
+  if (loading)
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          height: "70vh",
+        }}
+      >
+        <CircularProgress />
+      </Box>
+    );
 
   return (
-    <Box>
-      <Typography variant="h5" sx={{ mb: 2 }}>
-        Guruhlar Admin paneli
+    <Box sx={{ p: 4 }}>
+      <Typography variant="h5" fontWeight="bold" mb={3}>
+        📘 Guruhlar boshqaruvi
       </Typography>
 
-      <Paper sx={{ p: 2, mb: 4 }}>
-        <Typography sx={{ mb: 1 }}>Yangi guruh yaratish:</Typography>
-        <TextField
-          label="Nomi"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          sx={{ mr: 2 }}
-        />
-        <TextField
-          label="Tavsif"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          sx={{ mr: 2 }}
-        />
+      {/* Yangi guruh yaratish */}
+      <Paper sx={{ p: 3, mb: 4 }}>
+        <Typography variant="h6" mb={2}>
+          ➕ Yangi guruh yaratish
+        </Typography>
 
-        <FormControl sx={{ mr: 2, minWidth: 200 }}>
-          <InputLabel>Studentlar</InputLabel>
-          <Select
-            multiple
-            value={selectedStudents}
-            onChange={(e) => setSelectedStudents(e.target.value)}
-          >
-            {allStudents.map((s) => (
-              <MenuItem key={s.id} value={s.id}>
-                {s.username}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+        <Stack spacing={2}>
+          <TextField
+            label="Guruh nomi"
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            fullWidth
+          />
 
-        <FormControl sx={{ mr: 2, minWidth: 200 }}>
-          <InputLabel>Teacherlar</InputLabel>
-          <Select
-            multiple
-            value={selectedTeachers}
-            onChange={(e) => setSelectedTeachers(e.target.value)}
-          >
-            {allTeachers.map((t) => (
-              <MenuItem key={t.id} value={t.id}>
-                {t.username}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+          <TextField
+            label="Tavsif (ixtiyoriy)"
+            value={form.description}
+            onChange={(e) => setForm({ ...form, description: e.target.value })}
+            fullWidth
+            multiline
+            rows={2}
+          />
 
-        <Button variant="contained" onClick={handleCreate}>
-          Yaratish
-        </Button>
+          <FormControl fullWidth>
+            <InputLabel>O‘qituvchilar</InputLabel>
+            <Select
+              multiple
+              value={form.teacher_ids}
+              onChange={(e) =>
+                setForm({ ...form, teacher_ids: e.target.value })
+              }
+              renderValue={(selected) =>
+                selected
+                  .map((id) => teachers.find((t) => t.id === id)?.full_name)
+                  .join(", ")
+              }
+            >
+              {teachers.map((t) => (
+                <MenuItem key={t.id} value={t.id}>
+                  {t.full_name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <FormControl fullWidth>
+            <InputLabel>Talabalar</InputLabel>
+            <Select
+              multiple
+              value={form.student_ids}
+              onChange={(e) =>
+                setForm({ ...form, student_ids: e.target.value })
+              }
+              renderValue={(selected) =>
+                selected
+                  .map((id) => students.find((s) => s.id === id)?.full_name)
+                  .join(", ")
+              }
+            >
+              {students.map((s) => (
+                <MenuItem key={s.id} value={s.id}>
+                  {s.full_name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <Button variant="contained" onClick={handleCreate}>
+            Saqlash
+          </Button>
+        </Stack>
       </Paper>
 
-      <Paper sx={{ p: 2 }}>
+      {/* Guruhlar jadvali */}
+      <Paper sx={{ p: 3 }}>
+        <Typography variant="h6" mb={2}>
+          📋 Guruhlar ro‘yxati
+        </Typography>
+
         <Table>
           <TableHead>
             <TableRow>
               <TableCell>ID</TableCell>
               <TableCell>Nomi</TableCell>
+              <TableCell>O‘qituvchilar</TableCell>
+              <TableCell>Talabalar</TableCell>
               <TableCell>Tavsif</TableCell>
-              <TableCell>Students</TableCell>
-              <TableCell>Teachers</TableCell>
-              <TableCell>Created At</TableCell>
-              <TableCell>Actions</TableCell>
+              <TableCell>Amallar</TableCell>
             </TableRow>
           </TableHead>
+
           <TableBody>
+            {groups.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={6} align="center">
+                  Guruhlar mavjud emas
+                </TableCell>
+              </TableRow>
+            )}
+
             {groups.map((g) => (
               <TableRow key={g.id}>
                 <TableCell>{g.id}</TableCell>
                 <TableCell>{g.name}</TableCell>
-                <TableCell>{g.description}</TableCell>
-                <TableCell>{getStudentNames(g.student_ids)}</TableCell>
-                <TableCell>{getTeacherNames(g.teacher_ids)}</TableCell>
-                <TableCell>{new Date(g.created_at).toLocaleString()}</TableCell>
                 <TableCell>
-                  <Button color="error" onClick={() => handleDelete(g.id)}>
+                  {g.teachers?.length > 0
+                    ? g.teachers.map((t) => (
+                        <Chip
+                          key={t.id}
+                          label={t.full_name || t.username}
+                          color="primary"
+                          size="small"
+                          sx={{ mr: 0.5 }}
+                        />
+                      ))
+                    : "-"}
+                </TableCell>
+                <TableCell>
+                  {g.students?.length > 0
+                    ? g.students.map((s) => (
+                        <Chip
+                          key={s.id}
+                          label={s.full_name || s.username}
+                          color="secondary"
+                          size="small"
+                          sx={{ mr: 0.5 }}
+                        />
+                      ))
+                    : "-"}
+                </TableCell>
+                <TableCell>{g.description || "-"}</TableCell>
+                <TableCell>
+                  <Button
+                    color="error"
+                    size="small"
+                    onClick={() => handleDelete(g.id)}
+                  >
                     O‘chirish
                   </Button>
                 </TableCell>

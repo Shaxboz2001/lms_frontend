@@ -1,6 +1,5 @@
-// frontend/src/pages/Foydalanuvchilar.js
+// src/pages/Users.jsx
 import React, { useEffect, useState } from "react";
-import axios from "axios";
 import {
   Box,
   Typography,
@@ -12,17 +11,23 @@ import {
   DialogActions,
   Button,
   CircularProgress,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import { api } from "../services/api";
 
-const Users = () => {
+export default function Users() {
   const [users, setUsers] = useState([]);
   const [search, setSearch] = useState("");
   const [filteredUsers, setFilteredUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState(null);
 
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+
+  // Foydalanuvchilarni olish
   useEffect(() => {
     const fetchUsers = async () => {
       try {
@@ -38,24 +43,20 @@ const Users = () => {
     fetchUsers();
   }, []);
 
-  // 🔍 Search funksiyasi
+  // Qidiruv
   useEffect(() => {
     const lower = search.toLowerCase();
     setFilteredUsers(
       users.filter(
         (u) =>
-          u.username.toLowerCase().includes(lower) ||
+          u.username?.toLowerCase().includes(lower) ||
           u.full_name?.toLowerCase().includes(lower)
       )
     );
   }, [search, users]);
 
-  const handleRowClick = (params) => {
-    setSelectedUser(params.row);
-  };
-
   const columns = [
-    { field: "id", headerName: "ID", width: 70 },
+    { field: "id", headerName: "ID", width: 60 },
     { field: "username", headerName: "Foydalanuvchi nomi", flex: 1 },
     { field: "full_name", headerName: "To‘liq ism", flex: 1 },
     { field: "role", headerName: "Rol", flex: 1 },
@@ -63,33 +64,33 @@ const Users = () => {
   ];
 
   return (
-    <Box sx={{ p: { xs: 1, sm: 3 } }}>
-      <Typography variant="h5" sx={{ mb: 2, fontWeight: "bold" }}>
-        👥 Foydalanuvchilar ro‘yxati
+    <Box sx={{ p: { xs: 2, md: 4 } }}>
+      <Typography variant="h5" fontWeight="bold" sx={{ mb: 2 }}>
+        👥 Foydalanuvchilar
       </Typography>
 
-      <Paper sx={{ p: 2, mb: 2 }}>
+      <Paper sx={{ p: 2, mb: 3 }}>
         <TextField
           fullWidth
+          label="🔍 Qidiruv (ism yoki familiya)"
           variant="outlined"
-          label="Foydalanuvchini qidiring (ism yoki familiya)"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
       </Paper>
 
       {loading ? (
-        <Box sx={{ display: "flex", justifyContent: "center", mt: 5 }}>
+        <Box sx={{ textAlign: "center", mt: 5 }}>
           <CircularProgress />
         </Box>
       ) : (
-        <Paper sx={{ height: 500, width: "100%", overflow: "hidden" }}>
+        <Paper sx={{ width: "100%", height: 500 }}>
           <DataGrid
             rows={filteredUsers}
             columns={columns}
-            pageSize={10}
+            pageSize={isMobile ? 5 : 10}
             rowsPerPageOptions={[5, 10, 20]}
-            onRowClick={handleRowClick}
+            onRowClick={(params) => setSelectedUser(params.row)}
             sx={{
               "& .MuiDataGrid-row:hover": {
                 backgroundColor: "#f0f7ff",
@@ -100,14 +101,14 @@ const Users = () => {
         </Paper>
       )}
 
-      {/* 🪟 Modal — foydalanuvchi tafsilotlari */}
+      {/* Modal */}
       <Dialog
-        open={Boolean(selectedUser)}
+        open={!!selectedUser}
         onClose={() => setSelectedUser(null)}
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>Foydalanuvchi ma’lumotlari</DialogTitle>
+        <DialogTitle>🧾 Foydalanuvchi ma’lumotlari</DialogTitle>
         <DialogContent dividers>
           {selectedUser && (
             <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
@@ -141,6 +142,4 @@ const Users = () => {
       </Dialog>
     </Box>
   );
-};
-
-export default Users;
+}

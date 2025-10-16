@@ -1,3 +1,4 @@
+// src/pages/Courses.jsx
 import React, { useEffect, useState } from "react";
 import {
   Box,
@@ -17,7 +18,7 @@ import { api } from "../services/api";
 export default function Courses() {
   const [courses, setCourses] = useState([]);
   const [teachers, setTeachers] = useState([]);
-  const [newCourse, setNewCourse] = useState({
+  const [form, setForm] = useState({
     title: "",
     subject: "",
     teacher_id: "",
@@ -25,29 +26,16 @@ export default function Courses() {
     start_date: "",
     price: "",
   });
-  const [successMsg, setSuccessMsg] = useState("");
-  const [errorMsg, setErrorMsg] = useState("");
+  const [msg, setMsg] = useState({ type: "", text: "" });
 
-  // ✅ Kurslar ro'yxatini olish
   const fetchCourses = async () => {
-    try {
-      const res = await api.get(`courses/`);
-      setCourses(res.data);
-    } catch (err) {
-      console.error("Kurslarni olishda xatolik:", err);
-      setErrorMsg("Kurslarni olishda xatolik yuz berdi!");
-    }
+    const res = await api.get(`courses/`);
+    setCourses(res.data);
   };
 
-  // ✅ O‘qituvchilar ro'yxatini olish
   const fetchTeachers = async () => {
-    try {
-      const res = await api.get(`/users`);
-      setTeachers(res.data.filter((user) => user.role === "teacher"));
-    } catch (err) {
-      console.error("O‘qituvchilarni olishda xatolik:", err);
-      setErrorMsg("O‘qituvchilarni olishda xatolik yuz berdi!");
-    }
+    const res = await api.get(`/users`);
+    setTeachers(res.data.filter((u) => u.role === "teacher"));
   };
 
   useEffect(() => {
@@ -55,27 +43,21 @@ export default function Courses() {
     fetchTeachers();
   }, []);
 
-  // ✅ Kurs yaratish
-  const handleCreateCourse = async () => {
+  const handleSubmit = async () => {
+    if (!form.title || !form.teacher_id || !form.start_date) {
+      setMsg({
+        type: "error",
+        text: "Iltimos, barcha majburiy maydonlarni to‘ldiring!",
+      });
+      return;
+    }
     try {
-      if (
-        !newCourse.title.trim() ||
-        !newCourse.start_date ||
-        !newCourse.teacher_id
-      ) {
-        setErrorMsg("Iltimos, barcha majburiy maydonlarni to‘ldiring!");
-        return;
-      }
-
-      const payload = {
-        ...newCourse,
-        price: parseFloat(newCourse.price) || 0,
-      };
-
-      const res = await api.post(`/courses/`, payload);
-      setSuccessMsg(`"${res.data.title}" kursi muvaffaqiyatli yaratildi!`);
-
-      setNewCourse({
+      await api.post(`/courses/`, {
+        ...form,
+        price: parseFloat(form.price) || 0,
+      });
+      setMsg({ type: "success", text: "Kurs muvaffaqiyatli yaratildi!" });
+      setForm({
         title: "",
         subject: "",
         teacher_id: "",
@@ -83,215 +65,115 @@ export default function Courses() {
         start_date: "",
         price: "",
       });
-
       fetchCourses();
     } catch (err) {
-      console.error(err);
-      setErrorMsg("Kurs yaratishda xatolik yuz berdi!");
+      setMsg({ type: "error", text: "Kurs yaratishda xatolik yuz berdi!" });
     }
   };
 
   return (
-    <Box
-      sx={{
-        bgcolor: "#f9fafc",
-        minHeight: "100vh",
-        p: { xs: 2, md: 4 },
-      }}
-    >
-      <Typography variant="h4" fontWeight="bold" gutterBottom>
+    <Box sx={{ bgcolor: "#f9fafc", p: { xs: 2, md: 4 }, minHeight: "100vh" }}>
+      <Typography variant="h4" fontWeight="bold" mb={2}>
         🎓 Kurslarni boshqarish
       </Typography>
       <Divider sx={{ mb: 3 }} />
 
-      {/* 🔹 Yangi kurs formasi */}
-      <Card sx={{ mb: 5, boxShadow: 3, borderRadius: 3 }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom>
-            ✨ Yangi kurs yaratish
-          </Typography>
-
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={6}>
+      <Card sx={{ mb: 4, p: 2 }}>
+        <Typography variant="h6" mb={2}>
+          ✨ Yangi kurs yaratish
+        </Typography>
+        <Grid container spacing={2}>
+          {["title", "subject"].map((f) => (
+            <Grid item xs={12} md={6} key={f}>
               <TextField
-                label="Kurs nomi"
+                label={f === "title" ? "Kurs nomi" : "Fan nomi"}
                 fullWidth
-                required
-                value={newCourse.title}
-                onChange={(e) =>
-                  setNewCourse({ ...newCourse, title: e.target.value })
-                }
+                value={form[f]}
+                onChange={(e) => setForm({ ...form, [f]: e.target.value })}
               />
             </Grid>
-
-            <Grid item xs={12} md={6}>
-              <TextField
-                label="Fan nomi"
-                fullWidth
-                required
-                value={newCourse.subject}
-                onChange={(e) =>
-                  setNewCourse({ ...newCourse, subject: e.target.value })
-                }
-              />
-            </Grid>
-
-            <Grid item xs={12} md={6}>
-              <TextField
-                select
-                label="O‘qituvchi"
-                fullWidth
-                required
-                value={newCourse.teacher_id}
-                minRows={3}
-                onChange={(e) =>
-                  setNewCourse({ ...newCourse, teacher_id: e.target.value })
-                }
-              >
-                {teachers.length > 0 ? (
-                  teachers.map((t) => (
-                    <MenuItem key={t.id} value={t.id}>
-                      {t.full_name}
-                    </MenuItem>
-                  ))
-                ) : (
-                  <MenuItem disabled>O‘qituvchilar topilmadi</MenuItem>
-                )}
-              </TextField>
-            </Grid>
-
-            <Grid item xs={12} md={6}>
-              <TextField
-                label="Narxi (so‘m)"
-                type="number"
-                fullWidth
-                value={newCourse.price}
-                onChange={(e) =>
-                  setNewCourse({ ...newCourse, price: e.target.value })
-                }
-              />
-            </Grid>
-
-            <Grid item xs={12} md={6}>
-              <TextField
-                label="Boshlanish sanasi"
-                type="date"
-                fullWidth
-                InputLabelProps={{ shrink: true }}
-                value={newCourse.start_date}
-                onChange={(e) =>
-                  setNewCourse({ ...newCourse, start_date: e.target.value })
-                }
-              />
-            </Grid>
-
-            <Grid item xs={12}>
-              <TextField
-                label="Tavsif"
-                fullWidth
-                multiline
-                rows={3}
-                value={newCourse.description}
-                onChange={(e) =>
-                  setNewCourse({ ...newCourse, description: e.target.value })
-                }
-              />
-            </Grid>
-
-            <Grid item xs={12} textAlign="right">
-              <Button
-                variant="contained"
-                color="primary"
-                sx={{ px: 4, py: 1.2, fontWeight: "bold" }}
-                onClick={handleCreateCourse}
-              >
-                💾 Kursni qo‘shish
-              </Button>
-            </Grid>
+          ))}
+          <Grid item xs={12} md={6}>
+            <TextField
+              select
+              label="O‘qituvchi"
+              fullWidth
+              value={form.teacher_id}
+              onChange={(e) => setForm({ ...form, teacher_id: e.target.value })}
+            >
+              {teachers.map((t) => (
+                <MenuItem key={t.id} value={t.id}>
+                  {t.full_name}
+                </MenuItem>
+              ))}
+            </TextField>
           </Grid>
-        </CardContent>
+          <Grid item xs={12} md={6}>
+            <TextField
+              label="Narxi (so‘m)"
+              type="number"
+              fullWidth
+              value={form.price}
+              onChange={(e) => setForm({ ...form, price: e.target.value })}
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <TextField
+              label="Boshlanish sanasi"
+              type="date"
+              InputLabelProps={{ shrink: true }}
+              fullWidth
+              value={form.start_date}
+              onChange={(e) => setForm({ ...form, start_date: e.target.value })}
+            />
+          </Grid>
+          <Grid item xs={12}>
+            <TextField
+              label="Tavsif"
+              fullWidth
+              multiline
+              rows={3}
+              value={form.description}
+              onChange={(e) =>
+                setForm({ ...form, description: e.target.value })
+              }
+            />
+          </Grid>
+          <Grid item xs={12} textAlign="right">
+            <Button variant="contained" onClick={handleSubmit}>
+              💾 Kursni qo‘shish
+            </Button>
+          </Grid>
+        </Grid>
       </Card>
 
-      {/* 📋 Kurslar ro‘yxati */}
-      <Typography variant="h5" gutterBottom>
+      <Typography variant="h5" mb={2}>
         📚 Mavjud kurslar
       </Typography>
-
       <Grid container spacing={3}>
-        {courses.length > 0 ? (
-          courses.map((course) => (
-            <Grid item xs={12} md={6} lg={4} key={course.id}>
-              <Card
-                sx={{
-                  p: 2,
-                  boxShadow: 2,
-                  borderRadius: 2,
-                  borderLeft: "6px solid #1976d2",
-                  transition: "0.3s",
-                  "&:hover": { boxShadow: 5 },
-                }}
-              >
-                <CardContent>
-                  <Typography variant="h6" color="primary" fontWeight="bold">
-                    {course.title}
-                  </Typography>
-
-                  <Typography color="text.secondary">
-                    🧠 <b>Fan:</b> {course.subject || "—"}
-                  </Typography>
-
-                  <Typography sx={{ mt: 1 }}>
-                    👨‍🏫 <b>O‘qituvchi:</b> {course.teacher_name || "—"}
-                  </Typography>
-
-                  <Typography sx={{ mt: 1 }}>
-                    📅 <b>Boshlanish:</b> {course.start_date || "—"}
-                  </Typography>
-
-                  <Typography sx={{ mt: 0.5 }}>
-                    💰 <b>Narx:</b>{" "}
-                    {course.price
-                      ? `${course.price.toLocaleString()} so‘m`
-                      : "—"}
-                  </Typography>
-
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ mt: 1 }}
-                  >
-                    {course.description || "Tavsif mavjud emas"}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-          ))
-        ) : (
-          <Typography variant="body1" sx={{ ml: 2 }}>
-            Hozircha kurs mavjud emas.
-          </Typography>
-        )}
+        {courses.map((c) => (
+          <Grid item xs={12} md={6} lg={4} key={c.id}>
+            <Card sx={{ p: 2, borderLeft: "6px solid #1976d2" }}>
+              <CardContent>
+                <Typography variant="h6" color="primary">
+                  {c.title}
+                </Typography>
+                <Typography>👨‍🏫 {c.teacher_name}</Typography>
+                <Typography>💰 {c.price?.toLocaleString()} so‘m</Typography>
+                <Typography>📅 {c.start_date}</Typography>
+                <Typography sx={{ mt: 1 }}>{c.description}</Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
       </Grid>
 
-      {/* ✅ Snackbarlar */}
       <Snackbar
-        open={!!successMsg}
+        open={!!msg.text}
         autoHideDuration={3000}
-        onClose={() => setSuccessMsg("")}
+        onClose={() => setMsg({ type: "", text: "" })}
       >
-        <Alert severity="success" sx={{ fontSize: "0.95rem" }}>
-          {successMsg}
-        </Alert>
-      </Snackbar>
-
-      <Snackbar
-        open={!!errorMsg}
-        autoHideDuration={4000}
-        onClose={() => setErrorMsg("")}
-      >
-        <Alert severity="error" sx={{ fontSize: "0.95rem" }}>
-          {errorMsg}
-        </Alert>
+        <Alert severity={msg.type}>{msg.text}</Alert>
       </Snackbar>
     </Box>
   );
