@@ -29,8 +29,8 @@ export default function Groups() {
     id: null,
     name: "",
     course_id: "",
-    teacher_id: "",
-    student_id: "",
+    teacher_id: [],
+    student_ids: [],
   });
 
   // -----------------------------
@@ -75,11 +75,18 @@ export default function Groups() {
   // -----------------------------
   const handleSave = async () => {
     try {
+      const payload = {
+        ...formData,
+        teacher_id: formData.teacher_id.map(Number),
+        student_ids: formData.student_ids.map(Number),
+      };
+
       if (editMode) {
-        await api.put(`/groups/${formData.id}`, formData);
+        await api.put(`/groups/${formData.id}`, payload);
       } else {
-        await api.post("/groups/", formData);
+        await api.post("/groups/", payload);
       }
+
       setOpen(false);
       fetchGroups();
     } catch (err) {
@@ -101,7 +108,13 @@ export default function Groups() {
   // EDIT / CREATE modal
   // -----------------------------
   const handleEdit = (group) => {
-    setFormData(group);
+    setFormData({
+      id: group.id,
+      name: group.name,
+      course_id: group.course_id,
+      teacher_id: group.teachers?.map((t) => t.id) || [],
+      student_ids: group.students?.map((s) => s.id) || [],
+    });
     setEditMode(true);
     setOpen(true);
   };
@@ -111,8 +124,8 @@ export default function Groups() {
       id: null,
       name: "",
       course_id: "",
-      teacher_id: "",
-      student_id: "",
+      teacher_id: [],
+      student_ids: [],
     });
     setEditMode(false);
     setOpen(true);
@@ -136,8 +149,8 @@ export default function Groups() {
           <TableRow>
             <TableCell>Nom</TableCell>
             <TableCell>Kurs</TableCell>
-            <TableCell>O‘qituvchi</TableCell>
-            <TableCell>Talaba</TableCell>
+            <TableCell>O‘qituvchilar</TableCell>
+            <TableCell>Talabalar</TableCell>
             <TableCell>Amallar</TableCell>
           </TableRow>
         </TableHead>
@@ -145,9 +158,13 @@ export default function Groups() {
           {groups.map((g) => (
             <TableRow key={g.id}>
               <TableCell>{g.name}</TableCell>
-              <TableCell>{g.course_name}</TableCell>
-              <TableCell>{g.teacher_name}</TableCell>
-              <TableCell>{g.student_name}</TableCell>
+              <TableCell>{g.course?.title || "-"}</TableCell>
+              <TableCell>
+                {g.teachers?.map((t) => t.full_name).join(", ") || "-"}
+              </TableCell>
+              <TableCell>
+                {g.students?.map((s) => s.full_name).join(", ") || "-"}
+              </TableCell>
               <TableCell>
                 <Button size="small" onClick={() => handleEdit(g)}>
                   Edit
@@ -199,9 +216,9 @@ export default function Groups() {
             label="O‘qituvchi"
             fullWidth
             margin="normal"
-            value={formData.teacher_id}
+            value={formData.teacher_id[0] || ""}
             onChange={(e) =>
-              setFormData({ ...formData, teacher_id: e.target.value })
+              setFormData({ ...formData, teacher_id: [Number(e.target.value)] })
             }
           >
             {teachers.map((t) => (
@@ -216,9 +233,12 @@ export default function Groups() {
             label="Talaba"
             fullWidth
             margin="normal"
-            value={formData.student_id}
+            value={formData.student_ids[0] || ""}
             onChange={(e) =>
-              setFormData({ ...formData, student_id: e.target.value })
+              setFormData({
+                ...formData,
+                student_ids: [Number(e.target.value)],
+              })
             }
           >
             {students.map((s) => (
