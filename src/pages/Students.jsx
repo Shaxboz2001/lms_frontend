@@ -315,7 +315,7 @@ const Students = () => {
             >
               {courses.map((course) => (
                 <MenuItem key={course.id} value={course.id}>
-                  {course.name}
+                  {course.title}
                 </MenuItem>
               ))}
             </Select>
