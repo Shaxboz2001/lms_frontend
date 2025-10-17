@@ -75,10 +75,11 @@ const Students = () => {
   const handleCourseChange = (e) => {
     const courseId = e.target.value;
     const selectedCourse = courses.find((c) => c.id === courseId);
+    form.fee = selectedCourse.price;
     setForm({
       ...form,
       course_id: courseId,
-      fee: selectedCourse ? selectedCourse.fee : "",
+      fee: selectedCourse ? selectedCourse.price : "",
     });
   };
 
