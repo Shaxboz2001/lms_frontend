@@ -27,6 +27,7 @@ import { api } from "../services/api";
 
 const Students = () => {
   const [students, setStudents] = useState([]);
+  const [courses, setCourses] = useState([]); // 🔹 kurslar ro‘yxati
   const [open, setOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState(null);
   const [selectedTab, setSelectedTab] = useState("all");
@@ -35,7 +36,7 @@ const Students = () => {
     full_name: "",
     phone: "",
     address: "",
-    subject: "",
+    course_id: "",
     fee: "",
     age: "",
     password: "1234",
@@ -51,13 +52,35 @@ const Students = () => {
       const res = await api.get(`/students`);
       setStudents(res.data);
     } catch (err) {
-      console.error("Fetch error:", err.response?.data || err.message);
+      console.error("Fetch students error:", err.response?.data || err.message);
+    }
+  };
+
+  // 🔹 Kurslarni olish
+  const fetchCourses = async () => {
+    try {
+      const res = await api.get(`/courses`);
+      setCourses(res.data);
+    } catch (err) {
+      console.error("Fetch courses error:", err.response?.data || err.message);
     }
   };
 
   useEffect(() => {
     fetchStudents();
+    fetchCourses();
   }, []);
+
+  // 🔹 Course tanlanganda avtomatik fee qo‘yish
+  const handleCourseChange = (e) => {
+    const courseId = e.target.value;
+    const selectedCourse = courses.find((c) => c.id === courseId);
+    setForm({
+      ...form,
+      course_id: courseId,
+      fee: selectedCourse ? selectedCourse.fee : "",
+    });
+  };
 
   // 🔹 Filtrlangan studentlar
   const filteredStudents =
@@ -65,7 +88,7 @@ const Students = () => {
       ? students
       : students.filter((s) => s.status === selectedTab);
 
-  // 🔹 Student qo‘shish yoki tahrirlash
+  // 🔹 Saqlash (create/update)
   const handleSave = async () => {
     try {
       const payload = {
@@ -106,7 +129,7 @@ const Students = () => {
         full_name: student.full_name || "",
         phone: student.phone || "",
         address: student.address || "",
-        subject: student.subject || "",
+        course_id: student.course_id || "",
         fee: student.fee || "",
         age: student.age || "",
         password: "1234",
@@ -119,7 +142,7 @@ const Students = () => {
         full_name: "",
         phone: "",
         address: "",
-        subject: "",
+        course_id: "",
         fee: "",
         age: "",
         password: "1234",
@@ -177,7 +200,7 @@ const Students = () => {
               <TableCell>Ism Familiya</TableCell>
               <TableCell>Username</TableCell>
               <TableCell>Telefon</TableCell>
-              <TableCell>Fan</TableCell>
+              <TableCell>Kurs</TableCell>
               <TableCell>To‘lov</TableCell>
               <TableCell>Yosh</TableCell>
               <TableCell>Status</TableCell>
@@ -191,7 +214,7 @@ const Students = () => {
                 <TableCell>{student.full_name}</TableCell>
                 <TableCell>{student.username}</TableCell>
                 <TableCell>{student.phone}</TableCell>
-                <TableCell>{student.subject}</TableCell>
+                <TableCell>{student.course?.name || "—"}</TableCell>
                 <TableCell>{student.fee}</TableCell>
                 <TableCell>{student.age}</TableCell>
                 <TableCell>
@@ -281,22 +304,34 @@ const Students = () => {
             value={form.address}
             onChange={(e) => setForm({ ...form, address: e.target.value })}
           />
+
+          {/* 🔹 Kurs tanlash */}
+          <FormControl fullWidth sx={{ mt: 2 }}>
+            <InputLabel>Kurs</InputLabel>
+            <Select
+              value={form.course_id}
+              label="Kurs"
+              onChange={handleCourseChange}
+            >
+              {courses.map((course) => (
+                <MenuItem key={course.id} value={course.id}>
+                  {course.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          {/* 🔹 Fee avtomatik to‘ldiriladi */}
           <TextField
-            label="Subject"
-            fullWidth
-            sx={{ mt: 2 }}
-            value={form.subject}
-            onChange={(e) => setForm({ ...form, subject: e.target.value })}
-          />
-          <TextField
-            label="Fee"
+            label="To‘lov (so‘m)"
             fullWidth
             sx={{ mt: 2 }}
             value={form.fee}
             onChange={(e) => setForm({ ...form, fee: e.target.value })}
           />
+
           <TextField
-            label="Age"
+            label="Yosh"
             fullWidth
             type="number"
             sx={{ mt: 2 }}
