@@ -20,7 +20,9 @@ import {
   Paper,
   Tabs,
   Tab,
+  useMediaQuery,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import { api } from "../services/api";
 
 const Students = () => {
@@ -39,6 +41,9 @@ const Students = () => {
     password: "1234",
     status: "interested",
   });
+
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   // 🔹 Studentlarni olish
   const fetchStudents = async () => {
@@ -104,7 +109,7 @@ const Students = () => {
         subject: student.subject || "",
         fee: student.fee || "",
         age: student.age || "",
-        password: student.password || "1234",
+        password: "1234",
         status: student.status || "interested",
       });
     } else {
@@ -131,8 +136,8 @@ const Students = () => {
   };
 
   return (
-    <Box p={3}>
-      <Typography variant="h5" mb={2}>
+    <Box p={isMobile ? 1.5 : 3}>
+      <Typography variant="h5" mb={2} fontWeight={600}>
         🎓 Studentlar ro‘yxati
       </Typography>
 
@@ -154,12 +159,18 @@ const Students = () => {
         </Tabs>
       </Paper>
 
-      <Button variant="contained" color="primary" onClick={() => handleOpen()}>
+      <Button
+        variant="contained"
+        color="primary"
+        onClick={() => handleOpen()}
+        sx={{ mb: 2 }}
+      >
         ➕ Student qo‘shish
       </Button>
 
-      <Paper sx={{ mt: 3 }}>
-        <Table>
+      {/* 🔹 Jadval */}
+      <Paper sx={{ width: "100%", overflowX: "auto" }}>
+        <Table size="small">
           <TableHead>
             <TableRow>
               <TableCell>ID</TableCell>
@@ -175,7 +186,7 @@ const Students = () => {
           </TableHead>
           <TableBody>
             {filteredStudents.map((student) => (
-              <TableRow key={student.id}>
+              <TableRow key={student.id} hover>
                 <TableCell>{student.id}</TableCell>
                 <TableCell>{student.full_name}</TableCell>
                 <TableCell>{student.username}</TableCell>
@@ -200,7 +211,7 @@ const Students = () => {
                     onClick={() => handleOpen(student)}
                     sx={{ mr: 1 }}
                   >
-                    ✏️ Edit
+                    ✏️
                   </Button>
                   <Button
                     size="small"
@@ -208,7 +219,7 @@ const Students = () => {
                     variant="outlined"
                     onClick={() => handleDelete(student.id)}
                   >
-                    🗑️ Delete
+                    🗑️
                   </Button>
                 </TableCell>
               </TableRow>
