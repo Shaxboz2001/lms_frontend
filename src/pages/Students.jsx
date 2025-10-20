@@ -73,9 +73,8 @@ const Students = () => {
 
   // 🔹 Course tanlanganda avtomatik fee qo‘yish
   const handleCourseChange = (e) => {
-    const courseId = e.target.value;
+    const courseId = Number(e.target.value); // ✅ string → number
     const selectedCourse = courses.find((c) => c.id === courseId);
-    form.fee = selectedCourse.price;
     setForm({
       ...form,
       course_id: courseId,
