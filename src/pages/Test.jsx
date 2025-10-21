@@ -379,73 +379,99 @@ export default function TestPage() {
   // ===============================
   // 👨‍🎓 STUDENT QISMI
   // ===============================
+  // ===============================
+  // 👨‍🎓 STUDENT QISMI (yangi versiya)
+  // ===============================
   return (
     <Box p={4} sx={{ bgcolor: "#f9f9f9", minHeight: "100vh" }}>
       <Typography variant="h4" gutterBottom fontWeight="bold">
         📚 Mavjud Testlar
       </Typography>
 
+      {/* Agar test tanlanmagan bo‘lsa */}
       {!selectedTest ? (
         <Box>
-          {tests.map((t) => (
-            <Card key={t.id} sx={{ mb: 2, p: 2, cursor: "pointer" }}>
-              <CardContent>
-                <Typography variant="h6">{t.title}</Typography>
-                <Typography color="text.secondary">{t.description}</Typography>
-                <Button
-                  variant="contained"
-                  sx={{ mt: 2 }}
-                  onClick={() => handleSelectTest(t.id)}
-                >
-                  Boshlash
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
+          {tests.length === 0 ? (
+            <Typography color="text.secondary">
+              Hozircha testlar mavjud emas
+            </Typography>
+          ) : (
+            tests.map((t) => (
+              <Card
+                key={t.id}
+                sx={{
+                  mb: 2,
+                  p: 2,
+                  cursor: "pointer",
+                  "&:hover": { boxShadow: 3 },
+                }}
+              >
+                <CardContent>
+                  <Typography variant="h6">{t.title}</Typography>
+                  <Typography color="text.secondary">
+                    {t.description}
+                  </Typography>
+
+                  <Box sx={{ mt: 2, display: "flex", gap: 2 }}>
+                    {/* 🔹 Testni ochish tugmasi */}
+                    <Button
+                      variant="contained"
+                      onClick={() => handleSelectTest(t.id)}
+                    >
+                      Tanlash
+                    </Button>
+
+                    {/* 🔹 Agar test ilgari topshirilgan bo‘lsa */}
+                    {t.my_result && (
+                      <Button
+                        variant="outlined"
+                        color="success"
+                        onClick={() =>
+                          handleViewDetailed(t.id, parseInt(userId))
+                        }
+                      >
+                        👁 Natijamni ko‘rish
+                      </Button>
+                    )}
+                  </Box>
+
+                  {/* 🔹 Qisqacha natija */}
+                  {t.my_result && (
+                    <Typography sx={{ mt: 1 }}>
+                      Sizning natijangiz:{" "}
+                      <b>
+                        {t.my_result.score} / {t.my_result.total}
+                      </b>
+                    </Typography>
+                  )}
+                </CardContent>
+              </Card>
+            ))
+          )}
         </Box>
       ) : (
+        // 🔹 Agar test tanlangan bo‘lsa
         <Paper sx={{ p: 3 }}>
           <Typography variant="h5" sx={{ mb: 2, fontWeight: "bold" }}>
             {selectedTest.title}
           </Typography>
 
-          {selectedTest.questions.map((q) => (
-            <Box key={q.id} sx={{ mb: 3 }}>
-              <Typography sx={{ mb: 1 }}>{q.text}</Typography>
-              <RadioGroup
-                onChange={(e) => handleAnswerChange(q.id, e.target.value)}
-              >
-                {q.options.map((opt) => (
-                  <FormControlLabel
-                    key={opt.id}
-                    value={opt.id.toString()}
-                    control={<Radio />}
-                    label={opt.text}
-                  />
-                ))}
-              </RadioGroup>
-            </Box>
-          ))}
-
-          <Button variant="contained" onClick={submitTest}>
-            Yuborish
-          </Button>
-
-          <Button
-            variant="outlined"
-            sx={{ ml: 2 }}
-            onClick={() => handleMyResult(selectedTest.id)}
-          >
-            📊 Natijamni ko‘rish
-          </Button>
-
-          {submitted && result && (
-            <Paper sx={{ mt: 4, p: 3, borderLeft: "6px solid green" }}>
+          {/* 🔹 Agar student ilgari topshirgan bo‘lsa — natijasini ko‘rsatamiz */}
+          {selectedTest.my_result ? (
+            <Paper
+              sx={{
+                p: 3,
+                mb: 3,
+                borderLeft: "6px solid green",
+                bgcolor: "#f0fff0",
+              }}
+            >
               <Typography variant="h6">
-                ✅ {result.student_name}, sizning natijangiz:
+                ✅ {selectedTest.my_result.student_name}, sizning natijangiz:
               </Typography>
               <Typography>
-                <b>{result.score}</b> / {result.total} to‘g‘ri javob.
+                <b>{selectedTest.my_result.score}</b> /{" "}
+                {selectedTest.my_result.total} to‘g‘ri javob.
               </Typography>
               <Button
                 sx={{ mt: 2 }}
@@ -456,12 +482,49 @@ export default function TestPage() {
               >
                 👁 Batafsil ko‘rish
               </Button>
+              <Button
+                sx={{ mt: 2, ml: 2 }}
+                onClick={() => setSelectedTest(null)}
+              >
+                🔙 Ortga
+              </Button>
             </Paper>
+          ) : (
+            // 🔹 Aks holda testni yechish qismi
+            <>
+              {selectedTest.questions?.map((q) => (
+                <Box key={q.id} sx={{ mb: 3 }}>
+                  <Typography sx={{ mb: 1 }}>{q.text}</Typography>
+                  <RadioGroup
+                    onChange={(e) => handleAnswerChange(q.id, e.target.value)}
+                  >
+                    {q.options.map((opt) => (
+                      <FormControlLabel
+                        key={opt.id}
+                        value={opt.id.toString()}
+                        control={<Radio />}
+                        label={opt.text}
+                      />
+                    ))}
+                  </RadioGroup>
+                </Box>
+              ))}
+              <Button variant="contained" onClick={submitTest}>
+                Yuborish
+              </Button>
+              <Button
+                sx={{ ml: 2 }}
+                variant="outlined"
+                onClick={() => setSelectedTest(null)}
+              >
+                Ortga
+              </Button>
+            </>
           )}
         </Paper>
       )}
 
-      {/* Batafsil oynasi student uchun */}
+      {/* Batafsil oynasi */}
       <Dialog
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
