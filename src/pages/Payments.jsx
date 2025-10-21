@@ -125,7 +125,7 @@ const Payments = () => {
         <Paper sx={{ p: 3, mb: 3, borderRadius: 3 }}>
           <Grid container spacing={2}>
             <Grid item xs={12} sm={6} md={2.5}>
-              <FormControl fullWidth>
+              <FormControl fullWidth sx={{ minWidth: "50px" }}>
                 <InputLabel>Guruh</InputLabel>
                 <Select
                   value={selectedGroup}
@@ -176,13 +176,16 @@ const Payments = () => {
             </Grid>
 
             <Grid item xs={12} sm={6} md={2.5}>
-              <FormControl fullWidth disabled={!filteredStudents.length}>
+              <FormControl
+                fullWidth
+                disabled={!filteredStudents.length}
+                sx={{ minWidth: "50px" }}
+              >
                 <InputLabel>Student</InputLabel>
                 <Select
                   value={selectedStudent}
                   label="Student"
                   onChange={(e) => setSelectedStudent(e.target.value)}
-                  sx={{ minWidth: "50px" }}
                 >
                   {filteredStudents.map((s) => (
                     <MenuItem key={s.id} value={s.id}>
