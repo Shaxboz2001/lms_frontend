@@ -15,9 +15,8 @@ import {
   MenuItem,
   InputLabel,
   FormControl,
+  Grid,
   Chip,
-  Stack,
-  useMediaQuery,
 } from "@mui/material";
 import { api } from "../services/api";
 
@@ -25,6 +24,8 @@ const Payments = () => {
   const [payments, setPayments] = useState([]);
   const [students, setStudents] = useState([]);
   const [groups, setGroups] = useState([]);
+  const [filteredStudents, setFilteredStudents] = useState([]);
+
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [selectedStudent, setSelectedStudent] = useState("");
@@ -32,54 +33,68 @@ const Payments = () => {
   const [selectedMonth, setSelectedMonth] = useState(
     new Date().toISOString().slice(0, 7)
   );
-  const [search, setSearch] = useState("");
 
   const role = localStorage.getItem("role");
   const token = localStorage.getItem("token");
   const userId = localStorage.getItem("userId");
 
-  const isMobile = useMediaQuery("(max-width: 768px)");
-
   useEffect(() => {
     fetchPayments();
-    fetchStudents();
     fetchGroups();
+    fetchStudents();
   }, []);
 
   const fetchPayments = async () => {
     try {
-      const response = await api.get(`/payments`);
-      setPayments(response.data);
-    } catch (error) {
-      console.error("Payment fetch error:", error);
-    }
-  };
-
-  const fetchStudents = async () => {
-    try {
-      const res = await api.get(`/users`);
-      setStudents(res.data.filter((u) => u.role === "student"));
+      const res = await api.get("/payments");
+      setPayments(res.data);
     } catch (err) {
-      console.error("Students fetch error:", err);
+      console.error("Payment fetch error:", err.response?.data || err.message);
     }
   };
 
   const fetchGroups = async () => {
     try {
-      const res = await api.get(`/groups`);
+      const res = await api.get("/groups");
       setGroups(res.data);
     } catch (err) {
-      console.error("Groups fetch error:", err);
+      console.error("Groups fetch error:", err.response?.data || err.message);
+    }
+  };
+
+  const fetchStudents = async () => {
+    try {
+      const res = await api.get("/users");
+      setStudents(res.data.filter((u) => u.role === "student"));
+    } catch (err) {
+      console.error("Students fetch error:", err.response?.data || err.message);
+    }
+  };
+
+  // Guruh tanlanganda avtomatik o‘sha guruhdagi studentlarni chiqarish
+  const handleGroupChange = (groupId) => {
+    setSelectedGroup(groupId);
+    if (groupId) {
+      const filtered = students.filter((s) => s.group_id === groupId);
+      setFilteredStudents(filtered);
+      setSelectedStudent("");
+    } else {
+      setFilteredStudents([]);
     }
   };
 
   const addPayment = async () => {
+    if (!selectedGroup || !selectedStudent || !amount) {
+      alert("Iltimos, barcha maydonlarni to‘ldiring!");
+      return;
+    }
+
     try {
-      await api.post(`/payments`, {
+      await api.post("/payments", {
         amount: parseFloat(amount),
         description,
-        student_id: selectedStudent ? parseInt(selectedStudent) : null,
-        group_id: selectedGroup ? parseInt(selectedGroup) : null,
+        student_id: parseInt(selectedStudent),
+        group_id: parseInt(selectedGroup),
         teacher_id: role === "teacher" ? parseInt(userId) : null,
         month: selectedMonth,
       });
@@ -88,181 +103,165 @@ const Payments = () => {
       setDescription("");
       setSelectedStudent("");
       setSelectedGroup("");
+      setSelectedMonth(new Date().toISOString().slice(0, 7));
+      setFilteredStudents([]);
       fetchPayments();
     } catch (err) {
-      console.error("Add payment error:", err);
+      console.error("Payment add error:", err.response?.data || err.message);
     }
   };
 
+  const getGroupName = (id) => groups.find((g) => g.id === id)?.name || "-";
   const getStudentName = (id) =>
     students.find((s) => s.id === id)?.username || "-";
-  const getGroupName = (id) => groups.find((g) => g.id === id)?.name || "-";
-
-  const filteredPayments = payments.filter(
-    (p) =>
-      getStudentName(p.student_id)
-        .toLowerCase()
-        .includes(search.toLowerCase()) ||
-      getGroupName(p.group_id).toLowerCase().includes(search.toLowerCase()) ||
-      (p.description || "").toLowerCase().includes(search.toLowerCase())
-  );
-
-  const renderStatus = (status, isOverdue) => {
-    if (status === "paid")
-      return <Chip label="To‘langan" color="success" size="small" />;
-    if (status === "partial")
-      return <Chip label="Qisman" color="warning" size="small" />;
-    if (isOverdue) return <Chip label="Kechikkan" color="error" size="small" />;
-    return <Chip label="To‘lanmagan" variant="outlined" size="small" />;
-  };
 
   return (
-    <Box sx={{ p: isMobile ? 1 : 3 }}>
-      <Typography variant="h5" sx={{ mb: 3, fontWeight: "bold" }}>
-        💳 To‘lovlar bo‘limi
+    <Box sx={{ p: { xs: 2, md: 4 } }}>
+      <Typography variant="h5" sx={{ mb: 3, fontWeight: 600 }}>
+        💳 To‘lovlar
       </Typography>
 
       {(role === "teacher" || role === "manager" || role === "admin") && (
-        <Paper
-          elevation={3}
-          sx={{
-            p: 2,
-            mb: 3,
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 2,
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <TextField
-            label="Miqdor (so‘m)"
-            type="number"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            size="small"
-            sx={{ minWidth: 120 }}
-          />
-          <TextField
-            label="Tavsif"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            size="small"
-            sx={{ minWidth: 150 }}
-          />
-          <FormControl sx={{ minWidth: 150 }} size="small">
-            <InputLabel>Talaba</InputLabel>
-            <Select
-              value={selectedStudent}
-              label="Talaba"
-              onChange={(e) => setSelectedStudent(e.target.value)}
-            >
-              {students.map((s) => (
-                <MenuItem key={s.id} value={s.id}>
-                  {s.username}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+        <Paper sx={{ p: 3, mb: 3, borderRadius: 3 }}>
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6} md={2.5}>
+              <TextField
+                fullWidth
+                label="Miqdor"
+                type="number"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+              />
+            </Grid>
 
-          <FormControl sx={{ minWidth: 150 }} size="small">
-            <InputLabel>Guruh</InputLabel>
-            <Select
-              value={selectedGroup}
-              label="Guruh"
-              onChange={(e) => setSelectedGroup(e.target.value)}
-            >
-              {groups.map((g) => (
-                <MenuItem key={g.id} value={g.id}>
-                  {g.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+            <Grid item xs={12} sm={6} md={3}>
+              <TextField
+                fullWidth
+                label="Tavsif"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              />
+            </Grid>
 
-          <TextField
-            label="Oy"
-            type="month"
-            size="small"
-            value={selectedMonth}
-            onChange={(e) => setSelectedMonth(e.target.value)}
-          />
-          <Button variant="contained" onClick={addPayment}>
-            Qo‘shish
-          </Button>
+            <Grid item xs={12} sm={6} md={2.5}>
+              <FormControl fullWidth>
+                <InputLabel>Guruh</InputLabel>
+                <Select
+                  value={selectedGroup}
+                  label="Guruh"
+                  onChange={(e) => handleGroupChange(e.target.value)}
+                >
+                  {groups.map((g) => (
+                    <MenuItem key={g.id} value={g.id}>
+                      {g.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+
+            <Grid item xs={12} sm={6} md={2.5}>
+              <FormControl fullWidth disabled={!filteredStudents.length}>
+                <InputLabel>Student</InputLabel>
+                <Select
+                  value={selectedStudent}
+                  label="Student"
+                  onChange={(e) => setSelectedStudent(e.target.value)}
+                >
+                  {filteredStudents.map((s) => (
+                    <MenuItem key={s.id} value={s.id}>
+                      {s.username}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+
+            <Grid item xs={12} sm={6} md={2}>
+              <TextField
+                fullWidth
+                label="Oy"
+                type="month"
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+              />
+            </Grid>
+
+            <Grid item xs={12} md={1.5}>
+              <Button
+                fullWidth
+                variant="contained"
+                color="primary"
+                sx={{ height: "100%" }}
+                onClick={addPayment}
+              >
+                Qo‘shish
+              </Button>
+            </Grid>
+          </Grid>
         </Paper>
       )}
 
-      <Box
-        sx={{
-          mb: 2,
-          display: "flex",
-          justifyContent: "space-between",
-          flexWrap: "wrap",
-          gap: 2,
-        }}
-      >
-        <TextField
-          label="Qidirish..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          size="small"
-          sx={{ width: isMobile ? "100%" : "300px" }}
-        />
-        <Typography variant="body2" color="text.secondary">
-          Jami: {filteredPayments.length} ta to‘lov
-        </Typography>
-      </Box>
-
-      <TableContainer
-        component={Paper}
-        sx={{
-          overflowX: "auto",
-          borderRadius: 3,
-          maxHeight: isMobile ? "70vh" : "80vh",
-        }}
-      >
-        <Table size="small" stickyHeader>
+      {/* 🔹 To‘lovlar jadvali */}
+      <TableContainer component={Paper} sx={{ borderRadius: 3 }}>
+        <Table size="small">
           <TableHead>
             <TableRow>
-              <TableCell>ID</TableCell>
-              <TableCell>Miqdor</TableCell>
-              <TableCell>Talaba</TableCell>
-              <TableCell>Guruh</TableCell>
-              <TableCell>Oy</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell>Qarzdorlik</TableCell>
-              <TableCell>Tavsif</TableCell>
-              <TableCell>Sana</TableCell>
+              <TableCell>
+                <b>ID</b>
+              </TableCell>
+              <TableCell>
+                <b>Student</b>
+              </TableCell>
+              <TableCell>
+                <b>Guruh</b>
+              </TableCell>
+              <TableCell>
+                <b>Miqdor</b>
+              </TableCell>
+              <TableCell>
+                <b>Oy</b>
+              </TableCell>
+              <TableCell>
+                <b>Tavsif</b>
+              </TableCell>
+              <TableCell>
+                <b>Sana</b>
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {filteredPayments.map((p) => (
+            {payments.map((p) => (
               <TableRow key={p.id}>
                 <TableCell>{p.id}</TableCell>
-                <TableCell>{p.amount.toLocaleString()} so‘m</TableCell>
                 <TableCell>{getStudentName(p.student_id)}</TableCell>
                 <TableCell>{getGroupName(p.group_id)}</TableCell>
-                <TableCell>{p.month || "-"}</TableCell>
-                <TableCell>{renderStatus(p.status, p.is_overdue)}</TableCell>
                 <TableCell>
-                  {p.debt_amount > 0 ? (
-                    <Typography color="error">
-                      -{p.debt_amount.toLocaleString()} so‘m
-                    </Typography>
-                  ) : (
-                    <Typography color="success.main">0</Typography>
-                  )}
+                  <Chip
+                    label={`${p.amount} so'm`}
+                    color="success"
+                    variant="outlined"
+                  />
                 </TableCell>
+                <TableCell>{p.month || "-"}</TableCell>
                 <TableCell>{p.description || "-"}</TableCell>
                 <TableCell>
-                  {new Date(p.created_at).toLocaleDateString()}
+                  {new Date(p.created_at).toLocaleDateString("uz-UZ")}
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </TableContainer>
+
+      {payments.length === 0 && (
+        <Typography
+          variant="body2"
+          sx={{ mt: 2, textAlign: "center", color: "gray" }}
+        >
+          Hozircha hech qanday to‘lov mavjud emas.
+        </Typography>
+      )}
     </Box>
   );
 };
