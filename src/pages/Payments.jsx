@@ -22,7 +22,7 @@ import { api } from "../services/api";
 
 const Payments = () => {
   const [payments, setPayments] = useState([]);
-  const [debts, setDebts] = useState([]); // 🔹 qarzdorlar
+  const [debts, setDebts] = useState([]);
   const [students, setStudents] = useState([]);
   const [groups, setGroups] = useState([]);
   const [filteredStudents, setFilteredStudents] = useState([]);
@@ -43,7 +43,7 @@ const Payments = () => {
     fetchPayments();
     fetchGroups();
     fetchStudents();
-    fetchDebts(); // 🔹 qarzdorlarni olish
+    fetchDebts();
   }, []);
 
   const fetchPayments = async () => {
@@ -116,7 +116,7 @@ const Payments = () => {
       setSelectedMonth(new Date().toISOString().slice(0, 7));
       setFilteredStudents([]);
       fetchPayments();
-      fetchDebts(); // 🔹 yangilaymiz
+      fetchDebts();
     } catch (err) {
       console.error("Payment add error:", err.response?.data || err.message);
     }
@@ -133,10 +133,18 @@ const Payments = () => {
       </Typography>
 
       {(role === "teacher" || role === "manager" || role === "admin") && (
-        <Paper sx={{ p: 3, mb: 3, borderRadius: 3 }}>
+        <Paper
+          sx={{
+            p: 3,
+            mb: 3,
+            borderRadius: 3,
+            boxShadow: 3,
+          }}
+        >
           <Grid container spacing={2}>
-            <Grid item xs={12} sm={6} md={2.5} sx={{ minWidth: "50px" }}>
-              <FormControl fullWidth>
+            {/* Guruh tanlash */}
+            <Grid item xs={12} sm={6} md={2.5}>
+              <FormControl fullWidth sx={{ minWidth: 160 }}>
                 <InputLabel>Guruh</InputLabel>
                 <Select
                   value={selectedGroup}
@@ -144,12 +152,10 @@ const Payments = () => {
                   onChange={(e) => {
                     const selectedId = e.target.value;
                     setSelectedGroup(selectedId);
-
                     const selected = groups.find(
                       (group) => group.id === selectedId
                     );
-                    if (selected) setAmount(selected.fee);
-
+                    if (selected) setAmount(selected.fee || "");
                     handleGroupChange(selectedId);
                   }}
                 >
@@ -162,6 +168,7 @@ const Payments = () => {
               </FormControl>
             </Grid>
 
+            {/* Miqdor */}
             <Grid item xs={12} sm={6} md={2.5}>
               <TextField
                 fullWidth
@@ -172,6 +179,7 @@ const Payments = () => {
               />
             </Grid>
 
+            {/* Tavsif */}
             <Grid item xs={12} sm={6} md={3}>
               <TextField
                 fullWidth
@@ -181,8 +189,13 @@ const Payments = () => {
               />
             </Grid>
 
-            <Grid item xs={12} sm={6} md={2.5} sx={{ minWidth: "50px" }}>
-              <FormControl fullWidth disabled={!filteredStudents.length}>
+            {/* Student tanlash */}
+            <Grid item xs={12} sm={6} md={2.5}>
+              <FormControl
+                fullWidth
+                sx={{ minWidth: 160 }}
+                disabled={!filteredStudents.length}
+              >
                 <InputLabel>Student</InputLabel>
                 <Select
                   value={selectedStudent}
@@ -198,6 +211,7 @@ const Payments = () => {
               </FormControl>
             </Grid>
 
+            {/* Oy */}
             <Grid item xs={12} sm={6} md={2}>
               <TextField
                 fullWidth
@@ -208,12 +222,17 @@ const Payments = () => {
               />
             </Grid>
 
+            {/* Qo'shish tugmasi */}
             <Grid item xs={12} md={1.5}>
               <Button
                 fullWidth
                 variant="contained"
                 color="primary"
-                sx={{ height: "100%" }}
+                sx={{
+                  height: "100%",
+                  fontWeight: 600,
+                  textTransform: "none",
+                }}
                 onClick={addPayment}
               >
                 Qo‘shish
