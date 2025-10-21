@@ -125,6 +125,38 @@ const Payments = () => {
         <Paper sx={{ p: 3, mb: 3, borderRadius: 3 }}>
           <Grid container spacing={2}>
             <Grid item xs={12} sm={6} md={2.5}>
+              <FormControl fullWidth>
+                <InputLabel>Guruh</InputLabel>
+                <Select
+                  value={selectedGroup}
+                  label="Guruh"
+                  onChange={(e) => {
+                    const selectedId = e.target.value;
+                    setSelectedGroup(selectedId);
+
+                    // Tanlangan guruhni topamiz
+                    const selected = groups.find(
+                      (group) => group.id === selectedId
+                    );
+
+                    // Agar topilsa, uning fee qiymatini to‘lov summasiga o‘rnatamiz
+                    if (selected) {
+                      setAmount(selected.fee);
+                    }
+
+                    // Keyingi amallar uchun (masalan, studentlarni chiqarish)
+                    handleGroupChange(selectedId);
+                  }}
+                >
+                  {groups.map((g) => (
+                    <MenuItem key={g.id} value={g.id}>
+                      {g.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={6} md={2.5}>
               <TextField
                 fullWidth
                 label="Miqdor"
@@ -141,23 +173,6 @@ const Payments = () => {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
               />
-            </Grid>
-
-            <Grid item xs={12} sm={6} md={2.5}>
-              <FormControl fullWidth>
-                <InputLabel>Guruh</InputLabel>
-                <Select
-                  value={selectedGroup}
-                  label="Guruh"
-                  onChange={(e) => handleGroupChange(e.target.value)}
-                >
-                  {groups.map((g) => (
-                    <MenuItem key={g.id} value={g.id}>
-                      {g.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
             </Grid>
 
             <Grid item xs={12} sm={6} md={2.5}>
