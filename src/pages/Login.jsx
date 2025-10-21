@@ -20,6 +20,7 @@ const Login = () => {
       // Token va role ni saqlaymiz
       localStorage.setItem("token", res.data.access_token);
       localStorage.setItem("role", res.data.role);
+      localStorage.setItem("userId", res.data.userid);
 
       // Dashboardga redirect
       window.location.href = "/dashboard";
