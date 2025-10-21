@@ -149,7 +149,7 @@ const Payments = () => {
                   }}
                 >
                   {groups.map((g) => (
-                    <MenuItem key={g.id} value={g.id}>
+                    <MenuItem key={g.id} value={g.id} sx={{ minWidth: "50px" }}>
                       {g.name}
                     </MenuItem>
                   ))}
@@ -182,6 +182,7 @@ const Payments = () => {
                   value={selectedStudent}
                   label="Student"
                   onChange={(e) => setSelectedStudent(e.target.value)}
+                  sx={{ minWidth: "50px" }}
                 >
                   {filteredStudents.map((s) => (
                     <MenuItem key={s.id} value={s.id}>
