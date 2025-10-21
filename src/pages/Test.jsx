@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
 import {
   Box,
   Typography,
@@ -17,8 +16,13 @@ import {
   RadioGroup,
   FormControlLabel,
   Paper,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Chip,
 } from "@mui/material";
-import { api, BASE_URL, config } from "../services/api";
+import { api } from "../services/api";
 
 export default function TestPage() {
   const [role, setRole] = useState("");
@@ -38,8 +42,11 @@ export default function TestPage() {
   const [submitted, setSubmitted] = useState(false);
   const [testResults, setTestResults] = useState([]);
   const [testTitle, setTestTitle] = useState("");
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailedResult, setDetailedResult] = useState(null);
 
   const userRole = localStorage.getItem("role");
+  const userId = localStorage.getItem("userId");
   useEffect(() => setRole(userRole), []);
 
   useEffect(() => {
@@ -103,6 +110,20 @@ export default function TestPage() {
     }
   };
 
+  // 🆕 Batafsil natijani olish
+  const handleViewDetailed = async (testId, studentId) => {
+    try {
+      const res = await api.get(
+        `/tests/${testId}/detailed_result/${studentId}`
+      );
+      setDetailedResult(res.data);
+      setDetailOpen(true);
+    } catch (err) {
+      console.error("Batafsil natijani olishda xato:", err);
+      alert("❌ Batafsil natijani olishda xatolik!");
+    }
+  };
+
   const handleAnswerChange = (qId, optId) => {
     setAnswers({ ...answers, [qId]: optId });
   };
@@ -120,9 +141,9 @@ export default function TestPage() {
     setSubmitted(true);
   };
 
-  // ==========================================
+  // ===============================
   // 🧑‍🏫 TEACHER QISMI
-  // ==========================================
+  // ===============================
   if (role === "teacher") {
     return (
       <Box p={4} sx={{ bgcolor: "#fafafa", minHeight: "100vh" }}>
@@ -287,17 +308,68 @@ export default function TestPage() {
                   <Typography variant="body2" color="text.secondary" mt={1}>
                     🕒 {new Date(r.submitted_at).toLocaleString()}
                   </Typography>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    sx={{ mt: 1 }}
+                    onClick={() =>
+                      handleViewDetailed(
+                        selectedTest.id || r.test_id,
+                        r.student_id
+                      )
+                    }
+                  >
+                    👁 Batafsil ko‘rish
+                  </Button>
                 </Card>
               ))}
           </Box>
         )}
+
+        {/* 🆕 Batafsil natijalar oynasi */}
+        <Dialog
+          open={detailOpen}
+          onClose={() => setDetailOpen(false)}
+          maxWidth="md"
+          fullWidth
+        >
+          <DialogTitle>
+            🧾 {detailedResult?.test_name} — {detailedResult?.student_name}
+          </DialogTitle>
+          <DialogContent dividers>
+            {detailedResult?.details?.map((q, i) => (
+              <Box key={i} sx={{ mb: 2 }}>
+                <Typography fontWeight="bold">
+                  {i + 1}. {q.question_text}
+                </Typography>
+                {q.options.map((o) => (
+                  <Chip
+                    key={o.id}
+                    label={o.text}
+                    color={
+                      o.is_correct
+                        ? "success"
+                        : o.is_selected
+                        ? "error"
+                        : "default"
+                    }
+                    sx={{ m: 0.5 }}
+                  />
+                ))}
+              </Box>
+            ))}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setDetailOpen(false)}>Yopish</Button>
+          </DialogActions>
+        </Dialog>
       </Box>
     );
   }
 
-  // ==========================================
+  // ===============================
   // 👨‍🎓 STUDENT QISMI
-  // ==========================================
+  // ===============================
   return (
     <Box p={4} sx={{ bgcolor: "#f9f9f9", minHeight: "100vh" }}>
       <Typography variant="h4" gutterBottom fontWeight="bold">
@@ -371,10 +443,57 @@ export default function TestPage() {
               <Typography>
                 <b>{result.score}</b> / {result.total} to‘g‘ri javob.
               </Typography>
+              <Button
+                sx={{ mt: 2 }}
+                variant="outlined"
+                onClick={() =>
+                  handleViewDetailed(selectedTest.id, parseInt(userId))
+                }
+              >
+                👁 Batafsil ko‘rish
+              </Button>
             </Paper>
           )}
         </Paper>
       )}
+
+      {/* Batafsil oynasi student uchun ham */}
+      <Dialog
+        open={detailOpen}
+        onClose={() => setDetailOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          🧾 {detailedResult?.test_name} — {detailedResult?.student_name}
+        </DialogTitle>
+        <DialogContent dividers>
+          {detailedResult?.details?.map((q, i) => (
+            <Box key={i} sx={{ mb: 2 }}>
+              <Typography fontWeight="bold">
+                {i + 1}. {q.question_text}
+              </Typography>
+              {q.options.map((o) => (
+                <Chip
+                  key={o.id}
+                  label={o.text}
+                  color={
+                    o.is_correct
+                      ? "success"
+                      : o.is_selected
+                      ? "error"
+                      : "default"
+                  }
+                  sx={{ m: 0.5 }}
+                />
+              ))}
+            </Box>
+          ))}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDetailOpen(false)}>Yopish</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
