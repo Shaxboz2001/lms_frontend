@@ -159,7 +159,7 @@ export default function Groups() {
             <TableRow key={g.id}>
               <TableCell>{g.name}</TableCell>
               <TableCell>{g.course?.title || "-"}</TableCell>
-              <TableCell>{g.teachers?.full_name || "-"}</TableCell>
+              <TableCell>{g.teacher?.full_name || "-"}</TableCell>
               <TableCell>
                 {g.students?.map((s) => s.full_name).join(", ") || "-"}
               </TableCell>
