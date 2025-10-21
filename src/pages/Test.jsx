@@ -47,8 +47,10 @@ export default function TestPage() {
 
   const userRole = localStorage.getItem("role");
   const userId = localStorage.getItem("userId");
+
   useEffect(() => setRole(userRole), []);
 
+  // 🔹 Ma'lumotlarni yuklash
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -65,6 +67,7 @@ export default function TestPage() {
     fetchData();
   }, [role]);
 
+  // ✅ Savol va variant qo‘shish
   const addQuestion = () =>
     setQuestions([
       ...questions,
@@ -77,6 +80,7 @@ export default function TestPage() {
     setQuestions(updated);
   };
 
+  // ✅ Test yaratish (teacher)
   const createTest = async () => {
     try {
       const payload = { ...newTest, questions };
@@ -91,6 +95,7 @@ export default function TestPage() {
     }
   };
 
+  // ✅ Testni tanlash (student uchun)
   const handleSelectTest = async (testId) => {
     const res = await api.get(`/tests/${testId}`);
     setSelectedTest(res.data);
@@ -98,6 +103,7 @@ export default function TestPage() {
     setResult(null);
   };
 
+  // ✅ O‘qituvchi natijalarni ko‘rish
   const handleViewResults = async (testId) => {
     try {
       const res = await api.get(`/tests/${testId}/results`);
@@ -110,7 +116,7 @@ export default function TestPage() {
     }
   };
 
-  // 🆕 Batafsil natijani olish
+  // ✅ Batafsil natijani olish
   const handleViewDetailed = async (testId, studentId) => {
     try {
       const res = await api.get(
@@ -124,10 +130,24 @@ export default function TestPage() {
     }
   };
 
+  // ✅ Student natijasini olish
+  const handleMyResult = async (testId) => {
+    try {
+      const res = await api.get(`/tests/${testId}/my_result`);
+      setResult(res.data);
+      setSubmitted(true);
+    } catch (err) {
+      console.error("Natijani olishda xato:", err);
+      alert("❌ Siz hali bu testni topshirmagansiz yoki xatolik yuz berdi.");
+    }
+  };
+
+  // ✅ Javobni tanlash
   const handleAnswerChange = (qId, optId) => {
     setAnswers({ ...answers, [qId]: optId });
   };
 
+  // ✅ Testni yuborish
   const submitTest = async () => {
     const payload = {
       answers: Object.keys(answers).map((qId) => ({
@@ -151,6 +171,7 @@ export default function TestPage() {
           🧑‍🏫 Test Yaratish
         </Typography>
 
+        {/* Test yaratish formasi */}
         <Paper sx={{ p: 3, mb: 4 }}>
           <TextField
             label="Test nomi"
@@ -250,6 +271,7 @@ export default function TestPage() {
           </Button>
         </Paper>
 
+        {/* Natijalar */}
         <Divider sx={{ my: 3 }} />
 
         <Typography variant="h5" gutterBottom>
@@ -282,51 +304,38 @@ export default function TestPage() {
             <Typography variant="h5" gutterBottom>
               📊 {testTitle} natijalari
             </Typography>
-            {testResults
-              .sort((a, b) => b.score - a.score)
-              .map((r, i) => (
-                <Card
-                  key={i}
-                  sx={{
-                    p: 2,
-                    mb: 2,
-                    borderLeft: "6px solid #1976d2",
-                    bgcolor: "#fdfdfd",
-                  }}
+            {testResults.map((r, i) => (
+              <Card key={i} sx={{ p: 2, mb: 2, bgcolor: "#fdfdfd" }}>
+                <Typography fontWeight="bold">
+                  {i + 1}. {r.student_name} ({r.group_name})
+                </Typography>
+                <Typography>
+                  Ball: <b>{r.score}</b> / {r.total}
+                </Typography>
+                <LinearProgress
+                  variant="determinate"
+                  value={(r.score / r.total) * 100}
+                  sx={{ mt: 1, borderRadius: 1 }}
+                />
+                <Button
+                  size="small"
+                  sx={{ mt: 1 }}
+                  variant="outlined"
+                  onClick={() =>
+                    handleViewDetailed(
+                      selectedTest.id || r.test_id,
+                      r.student_id
+                    )
+                  }
                 >
-                  <Typography fontWeight="bold">
-                    {i + 1}. {r.student_name} ({r.group_name})
-                  </Typography>
-                  <Typography>
-                    Ball: <b>{r.score}</b> / {r.total}
-                  </Typography>
-                  <LinearProgress
-                    variant="determinate"
-                    value={(r.score / r.total) * 100}
-                    sx={{ mt: 1, borderRadius: 1 }}
-                  />
-                  <Typography variant="body2" color="text.secondary" mt={1}>
-                    🕒 {new Date(r.submitted_at).toLocaleString()}
-                  </Typography>
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    sx={{ mt: 1 }}
-                    onClick={() =>
-                      handleViewDetailed(
-                        selectedTest.id || r.test_id,
-                        r.student_id
-                      )
-                    }
-                  >
-                    👁 Batafsil ko‘rish
-                  </Button>
-                </Card>
-              ))}
+                  👁 Batafsil ko‘rish
+                </Button>
+              </Card>
+            ))}
           </Box>
         )}
 
-        {/* 🆕 Batafsil natijalar oynasi */}
+        {/* Batafsil oynasi */}
         <Dialog
           open={detailOpen}
           onClose={() => setDetailOpen(false)}
@@ -379,15 +388,7 @@ export default function TestPage() {
       {!selectedTest ? (
         <Box>
           {tests.map((t) => (
-            <Card
-              key={t.id}
-              sx={{
-                mb: 2,
-                p: 2,
-                cursor: "pointer",
-                "&:hover": { boxShadow: 3 },
-              }}
-            >
+            <Card key={t.id} sx={{ mb: 2, p: 2, cursor: "pointer" }}>
               <CardContent>
                 <Typography variant="h6">{t.title}</Typography>
                 <Typography color="text.secondary">{t.description}</Typography>
@@ -407,6 +408,7 @@ export default function TestPage() {
           <Typography variant="h5" sx={{ mb: 2, fontWeight: "bold" }}>
             {selectedTest.title}
           </Typography>
+
           {selectedTest.questions.map((q) => (
             <Box key={q.id} sx={{ mb: 3 }}>
               <Typography sx={{ mb: 1 }}>{q.text}</Typography>
@@ -424,19 +426,21 @@ export default function TestPage() {
               </RadioGroup>
             </Box>
           ))}
+
           <Button variant="contained" onClick={submitTest}>
             Yuborish
           </Button>
 
+          <Button
+            variant="outlined"
+            sx={{ ml: 2 }}
+            onClick={() => handleMyResult(selectedTest.id)}
+          >
+            📊 Natijamni ko‘rish
+          </Button>
+
           {submitted && result && (
-            <Paper
-              sx={{
-                mt: 4,
-                p: 3,
-                borderLeft: "6px solid green",
-                bgcolor: "#f0fff0",
-              }}
-            >
+            <Paper sx={{ mt: 4, p: 3, borderLeft: "6px solid green" }}>
               <Typography variant="h6">
                 ✅ {result.student_name}, sizning natijangiz:
               </Typography>
@@ -457,7 +461,7 @@ export default function TestPage() {
         </Paper>
       )}
 
-      {/* Batafsil oynasi student uchun ham */}
+      {/* Batafsil oynasi student uchun */}
       <Dialog
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
