@@ -124,8 +124,8 @@ const Payments = () => {
       {(role === "teacher" || role === "manager" || role === "admin") && (
         <Paper sx={{ p: 3, mb: 3, borderRadius: 3 }}>
           <Grid container spacing={2}>
-            <Grid item xs={12} sm={6} md={2.5}>
-              <FormControl fullWidth sx={{ minWidth: "50px" }}>
+            <Grid item xs={12} sm={6} md={2.5} sx={{ minWidth: "50px" }}>
+              <FormControl fullWidth>
                 <InputLabel>Guruh</InputLabel>
                 <Select
                   value={selectedGroup}
@@ -149,7 +149,7 @@ const Payments = () => {
                   }}
                 >
                   {groups.map((g) => (
-                    <MenuItem key={g.id} value={g.id} sx={{ minWidth: "50px" }}>
+                    <MenuItem key={g.id} value={g.id}>
                       {g.name}
                     </MenuItem>
                   ))}
@@ -175,12 +175,8 @@ const Payments = () => {
               />
             </Grid>
 
-            <Grid item xs={12} sm={6} md={2.5}>
-              <FormControl
-                fullWidth
-                disabled={!filteredStudents.length}
-                sx={{ minWidth: "50px" }}
-              >
+            <Grid item xs={12} sm={6} md={2.5} sx={{ minWidth: "50px" }}>
+              <FormControl fullWidth disabled={!filteredStudents.length}>
                 <InputLabel>Student</InputLabel>
                 <Select
                   value={selectedStudent}
