@@ -22,6 +22,7 @@ import { api } from "../services/api";
 
 const Payments = () => {
   const [payments, setPayments] = useState([]);
+  const [debts, setDebts] = useState([]); // 🔹 qarzdorlar
   const [students, setStudents] = useState([]);
   const [groups, setGroups] = useState([]);
   const [filteredStudents, setFilteredStudents] = useState([]);
@@ -42,6 +43,7 @@ const Payments = () => {
     fetchPayments();
     fetchGroups();
     fetchStudents();
+    fetchDebts(); // 🔹 qarzdorlarni olish
   }, []);
 
   const fetchPayments = async () => {
@@ -50,6 +52,15 @@ const Payments = () => {
       setPayments(res.data);
     } catch (err) {
       console.error("Payment fetch error:", err.response?.data || err.message);
+    }
+  };
+
+  const fetchDebts = async () => {
+    try {
+      const res = await api.get("/payments/debts");
+      setDebts(res.data);
+    } catch (err) {
+      console.error("Debts fetch error:", err.response?.data || err.message);
     }
   };
 
@@ -71,7 +82,6 @@ const Payments = () => {
     }
   };
 
-  // Guruh tanlanganda avtomatik o‘sha guruhdagi studentlarni chiqarish
   const handleGroupChange = (groupId) => {
     setSelectedGroup(groupId);
     if (groupId) {
@@ -106,6 +116,7 @@ const Payments = () => {
       setSelectedMonth(new Date().toISOString().slice(0, 7));
       setFilteredStudents([]);
       fetchPayments();
+      fetchDebts(); // 🔹 yangilaymiz
     } catch (err) {
       console.error("Payment add error:", err.response?.data || err.message);
     }
@@ -134,17 +145,11 @@ const Payments = () => {
                     const selectedId = e.target.value;
                     setSelectedGroup(selectedId);
 
-                    // Tanlangan guruhni topamiz
                     const selected = groups.find(
                       (group) => group.id === selectedId
                     );
+                    if (selected) setAmount(selected.fee);
 
-                    // Agar topilsa, uning fee qiymatini to‘lov summasiga o‘rnatamiz
-                    if (selected) {
-                      setAmount(selected.fee);
-                    }
-
-                    // Keyingi amallar uchun (masalan, studentlarni chiqarish)
                     handleGroupChange(selectedId);
                   }}
                 >
@@ -156,6 +161,7 @@ const Payments = () => {
                 </Select>
               </FormControl>
             </Grid>
+
             <Grid item xs={12} sm={6} md={2.5}>
               <TextField
                 fullWidth
@@ -275,6 +281,72 @@ const Payments = () => {
           sx={{ mt: 2, textAlign: "center", color: "gray" }}
         >
           Hozircha hech qanday to‘lov mavjud emas.
+        </Typography>
+      )}
+
+      {/* 🔸 Qarzdorlar jadvali */}
+      <Typography variant="h6" sx={{ mt: 6, mb: 2 }}>
+        💰 Qarzdorlar ro‘yxati
+      </Typography>
+
+      <TableContainer component={Paper} sx={{ borderRadius: 3 }}>
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>
+                <b>Student</b>
+              </TableCell>
+              <TableCell>
+                <b>Guruh</b>
+              </TableCell>
+              <TableCell>
+                <b>To‘lanishi kerak</b>
+              </TableCell>
+              <TableCell>
+                <b>Qarzdorlik</b>
+              </TableCell>
+              <TableCell>
+                <b>To‘lov muddati</b>
+              </TableCell>
+              <TableCell>
+                <b>Holat</b>
+              </TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {debts.map((d) => (
+              <TableRow
+                key={d.id}
+                sx={{
+                  bgcolor: d.is_overdue ? "#ffebee" : "inherit",
+                }}
+              >
+                <TableCell>{getStudentName(d.student_id)}</TableCell>
+                <TableCell>{getGroupName(d.group_id)}</TableCell>
+                <TableCell>{d.total_due || 0} so‘m</TableCell>
+                <TableCell>
+                  <Chip
+                    label={`${d.debt_amount || 0} so‘m`}
+                    color={d.is_overdue ? "error" : "warning"}
+                    variant="outlined"
+                  />
+                </TableCell>
+                <TableCell>{d.due_date || "-"}</TableCell>
+                <TableCell>
+                  {d.is_overdue ? "Muddat o‘tgan" : "To‘lanmagan"}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      {debts.length === 0 && (
+        <Typography
+          variant="body2"
+          sx={{ mt: 2, textAlign: "center", color: "gray" }}
+        >
+          Hech qanday qarzdorlik topilmadi.
         </Typography>
       )}
     </Box>
