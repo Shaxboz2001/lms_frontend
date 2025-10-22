@@ -42,6 +42,7 @@ import Test from "./Test";
 import Courses from "./Course";
 import MyProfile from "./MyProfile";
 import TeacherGroups from "./TeacherGroups";
+import Reports from "./Reports";
 
 const drawerWidth = 240;
 
@@ -70,7 +71,7 @@ const Dashboard = ({ role }) => {
       },
       { name: "Guruhlar", path: "guruhlar", component: <Groups /> },
       { name: "To‘lovlar", path: "tolovlar", component: <Payments /> },
-      { name: "Hisobotlar", path: "hisobotlar", component: <Register /> },
+      { name: "Hisobotlar", path: "hisobotlar", component: <Reports /> },
       {
         name: "Ro‘yxatdan o‘tkazish",
         path: "register",
@@ -82,6 +83,7 @@ const Dashboard = ({ role }) => {
       { name: "O‘quvchilar", path: "oquvchilar", component: <Students /> },
       { name: "To‘lovlar", path: "tolovlar", component: <Payments /> },
       { name: "Kurslar", path: "kurslar", component: <Courses /> },
+      { name: "Hisobotlar", path: "hisobotlar", component: <Reports /> },
     ],
     teacher: [
       { name: "Guruhlarim", path: "guruhlarim", component: <TeacherGroups /> },
