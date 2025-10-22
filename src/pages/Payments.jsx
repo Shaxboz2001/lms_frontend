@@ -170,7 +170,10 @@ const Payments = () => {
           <Grid container spacing={2}>
             {/* Guruh tanlash */}
             <Grid item xs={12} sm={6} md={2.5}>
-              <FormControl fullWidth>
+              <FormControl
+                fullWidth
+                sx={{ minWidth: { xs: "100%", sm: 200, md: 240 } }}
+              >
                 <InputLabel>Guruh</InputLabel>
                 <Select
                   value={selectedGroup}
@@ -217,7 +220,11 @@ const Payments = () => {
 
             {/* Student tanlash */}
             <Grid item xs={12} sm={6} md={2.5}>
-              <FormControl fullWidth disabled={!filteredStudents.length}>
+              <FormControl
+                fullWidth
+                sx={{ minWidth: { xs: "100%", sm: 200, md: 240 } }}
+                disabled={!filteredStudents.length}
+              >
                 <InputLabel>Student</InputLabel>
                 <Select
                   value={selectedStudent}
@@ -250,7 +257,11 @@ const Payments = () => {
                 fullWidth
                 variant="contained"
                 color="primary"
-                sx={{ height: "100%", fontWeight: 600 }}
+                sx={{
+                  height: "100%",
+                  fontWeight: 600,
+                  textTransform: "none",
+                }}
                 onClick={() => setConfirmOpen(true)}
               >
                 Qo‘shish
@@ -358,9 +369,7 @@ const Payments = () => {
             {debts.map((d) => (
               <TableRow
                 key={d.id}
-                sx={{
-                  bgcolor: d.is_overdue ? "#ffebee" : "inherit",
-                }}
+                sx={{ bgcolor: d.is_overdue ? "#ffebee" : "inherit" }}
               >
                 <TableCell>{getStudentName(d.student_id)}</TableCell>
                 <TableCell>{getGroupName(d.group_id)}</TableCell>

@@ -25,8 +25,11 @@ import {
   TableHead,
   Table,
   TableBody,
+  useMediaQuery,
 } from "@mui/material";
+import { Menu as MenuIcon } from "@mui/icons-material";
 import { Routes, Route, useNavigate } from "react-router-dom";
+import { useTheme } from "@mui/material/styles";
 import { api } from "../services/api";
 
 import Register from "./Register";
@@ -40,14 +43,22 @@ import Courses from "./Course";
 import MyProfile from "./MyProfile";
 import TeacherGroups from "./TeacherGroups";
 
+const drawerWidth = 240;
+
 const Dashboard = ({ role }) => {
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({});
   const [openDialog, setOpenDialog] = useState(false);
   const [dialogContent, setDialogContent] = useState(null);
+
+  const toggleDrawer = () => setMobileOpen(!mobileOpen);
 
   // Role-based pages
   const pagesByRole = {
@@ -75,20 +86,12 @@ const Dashboard = ({ role }) => {
     teacher: [
       { name: "Guruhlarim", path: "guruhlarim", component: <TeacherGroups /> },
       { name: "Yo‘qlama", path: "yoqlama", component: <Attendance /> },
-      {
-        name: "Testlar",
-        path: "testlar",
-        component: <Test role={"teacher"} />,
-      },
+      { name: "Testlar", path: "testlar", component: <Test role="teacher" /> },
     ],
     student: [
       { name: "Kurslarim", path: "kurslarim", component: <Courses /> },
       { name: "Baholar", path: "baholar", component: <Register /> },
-      {
-        name: "Testlar",
-        path: "testlar",
-        component: <Test role={"student"} />,
-      },
+      { name: "Testlar", path: "testlar", component: <Test role="student" /> },
     ],
   };
 
@@ -101,7 +104,6 @@ const Dashboard = ({ role }) => {
       .catch(() => setUser(null))
       .finally(() => setLoading(false));
 
-    // statistikani olish
     api
       .get(`/dashboard/stats`)
       .then((res) => setStats(res.data))
@@ -115,27 +117,61 @@ const Dashboard = ({ role }) => {
     window.location.href = "/login";
   };
 
-  // Dialog ochish
   const openStatsDialog = (title, content) => {
     setDialogContent({ title, content });
     setOpenDialog(true);
   };
-
   const closeDialog = () => setOpenDialog(false);
+
+  // Sidebar content
+  const drawerContent = (
+    <Box sx={{ mt: 8 }}>
+      <List>
+        {pages.map((page, i) => (
+          <ListItem
+            button
+            key={i}
+            onClick={() => {
+              navigate(`/dashboard/${page.path}`);
+              if (isMobile) toggleDrawer();
+            }}
+          >
+            <ListItemText primary={page.name} />
+          </ListItem>
+        ))}
+      </List>
+    </Box>
+  );
 
   return (
     <Box sx={{ display: "flex" }}>
       {/* ✅ AppBar */}
-      <AppBar position="fixed">
+      <AppBar
+        position="fixed"
+        color="primary"
+        sx={{ zIndex: theme.zIndex.drawer + 1 }}
+      >
         <Toolbar>
+          {isMobile && (
+            <IconButton
+              color="inherit"
+              edge="start"
+              onClick={toggleDrawer}
+              sx={{ mr: 2 }}
+            >
+              <MenuIcon />
+            </IconButton>
+          )}
+
           <Typography variant="h6" sx={{ flexGrow: 1 }}>
             LMS Dashboard ({role})
           </Typography>
+
           {loading ? (
             <CircularProgress size={24} color="inherit" />
           ) : user ? (
             <>
-              <IconButton onClick={handleMenu}>
+              <IconButton onClick={handleMenu} sx={{ p: 0 }}>
                 <Avatar
                   src={user.avatar_url || "/default-avatar.png"}
                   alt={user.full_name}
@@ -161,40 +197,52 @@ const Dashboard = ({ role }) => {
         </Toolbar>
       </AppBar>
 
-      {/* ✅ Yon menyu */}
-      <Drawer
-        variant="permanent"
-        sx={{
-          width: 240,
-          [`& .MuiDrawer-paper`]: {
-            width: 240,
-            boxSizing: "border-box",
-            mt: 8,
-          },
-        }}
-      >
-        <List>
-          {pages.map((page, i) => (
-            <ListItem
-              button
-              key={i}
-              onClick={() => navigate(`/dashboard/${page.path}`)}
-            >
-              <ListItemText primary={page.name} />
-            </ListItem>
-          ))}
-        </List>
-      </Drawer>
+      {/* ✅ Drawer (Sidebar) */}
+      {isMobile ? (
+        <Drawer
+          variant="temporary"
+          open={mobileOpen}
+          onClose={toggleDrawer}
+          ModalProps={{ keepMounted: true }}
+          sx={{
+            [`& .MuiDrawer-paper`]: {
+              width: drawerWidth,
+              boxSizing: "border-box",
+            },
+          }}
+        >
+          {drawerContent}
+        </Drawer>
+      ) : (
+        <Drawer
+          variant="permanent"
+          sx={{
+            width: drawerWidth,
+            flexShrink: 0,
+            [`& .MuiDrawer-paper`]: {
+              width: drawerWidth,
+              boxSizing: "border-box",
+              mt: 8,
+            },
+          }}
+        >
+          {drawerContent}
+        </Drawer>
+      )}
 
       {/* ✅ Asosiy kontent */}
-      <Box component="main" sx={{ flexGrow: 1, p: 3, mt: 8 }}>
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          p: { xs: 2, md: 3 },
+          mt: 8,
+          width: { md: `calc(100% - ${drawerWidth}px)` },
+        }}
+      >
         <Routes>
           {pages.map((page, i) => (
-            <Route
-              key={i}
-              path={page.path}
-              element={<div>{page.component}</div>}
-            />
+            <Route key={i} path={page.path} element={page.component} />
           ))}
           <Route path="myprofile" element={<MyProfile />} />
 
@@ -206,64 +254,59 @@ const Dashboard = ({ role }) => {
                 <Typography variant="h5" gutterBottom>
                   Asosiy Statistik Ma’lumotlar
                 </Typography>
+
                 <Grid container spacing={2}>
                   {role === "admin" || role === "manager" ? (
                     <>
-                      <Grid item xs={12} md={3}>
-                        <Card
-                          onClick={() =>
-                            openStatsDialog("O‘quvchilar", stats.students)
-                          }
-                        >
-                          <CardContent>
-                            <Typography variant="h6">O‘quvchilar</Typography>
-                            <Typography variant="h4">
-                              {stats.students?.total || 0}
-                            </Typography>
-                            <Typography variant="body2">
-                              Qiziqqan: {stats.students?.interested || 0} |
-                              O‘qiyotgan: {stats.students?.studying || 0}
-                            </Typography>
-                          </CardContent>
-                        </Card>
-                      </Grid>
-
-                      <Grid item xs={12} md={3}>
-                        <Card
-                          onClick={() =>
-                            openStatsDialog("Guruhlar", stats.groups)
-                          }
-                        >
-                          <CardContent>
-                            <Typography variant="h6">Guruhlar</Typography>
-                            <Typography variant="h4">
-                              {stats.groups?.count || 0}
-                            </Typography>
-                          </CardContent>
-                        </Card>
-                      </Grid>
-
-                      <Grid item xs={12} md={3}>
-                        <Card
-                          onClick={() =>
-                            openStatsDialog("To‘lovlar", stats.payments)
-                          }
-                        >
-                          <CardContent>
-                            <Typography variant="h6">To‘lovlar</Typography>
-                            <Typography variant="h4">
-                              {stats.payments?.total || 0} so‘m
-                            </Typography>
-                            <Typography variant="body2">
-                              Bugun: {stats.payments?.today || 0} so‘m
-                            </Typography>
-                          </CardContent>
-                        </Card>
-                      </Grid>
+                      {[
+                        {
+                          title: "O‘quvchilar",
+                          count: stats.students?.total || 0,
+                          extra: `Qiziqqan: ${
+                            stats.students?.interested || 0
+                          } | O‘qiyotgan: ${stats.students?.studying || 0}`,
+                        },
+                        {
+                          title: "Guruhlar",
+                          count: stats.groups?.count || 0,
+                        },
+                        {
+                          title: "To‘lovlar",
+                          count: `${stats.payments?.total || 0} so‘m`,
+                          extra: `Bugun: ${stats.payments?.today || 0} so‘m`,
+                        },
+                      ].map((item, i) => (
+                        <Grid key={i} item xs={12} sm={6} md={4}>
+                          <Card
+                            sx={{
+                              transition: "0.3s",
+                              "&:hover": {
+                                boxShadow: 6,
+                                transform: "scale(1.02)",
+                              },
+                            }}
+                            onClick={() =>
+                              openStatsDialog(
+                                item.title,
+                                stats[item.title?.toLowerCase()]
+                              )
+                            }
+                          >
+                            <CardContent>
+                              <Typography variant="h6">{item.title}</Typography>
+                              <Typography variant="h4">{item.count}</Typography>
+                              {item.extra && (
+                                <Typography variant="body2">
+                                  {item.extra}
+                                </Typography>
+                              )}
+                            </CardContent>
+                          </Card>
+                        </Grid>
+                      ))}
                     </>
                   ) : role === "student" ? (
                     <>
-                      {/* ✅ Test natijalari */}
                       <Grid item xs={12} md={6}>
                         <Card>
                           <CardContent>
@@ -274,50 +317,9 @@ const Dashboard = ({ role }) => {
                             <Typography variant="body2">
                               Oxirgi test: {stats.tests?.last || 0}%
                             </Typography>
-
-                            {/* Tafsilotlar jadvali */}
-                            {stats.tests?.details?.length > 0 && (
-                              <Box mt={2}>
-                                <Typography variant="subtitle1" gutterBottom>
-                                  Test tafsilotlari:
-                                </Typography>
-                                <Table size="small">
-                                  <TableHead>
-                                    <TableRow>
-                                      <TableCell>Test nomi</TableCell>
-                                      <TableCell>Sana</TableCell>
-                                      <TableCell align="center">
-                                        To‘g‘ri
-                                      </TableCell>
-                                      <TableCell align="center">Jami</TableCell>
-                                      <TableCell align="center">Ball</TableCell>
-                                    </TableRow>
-                                  </TableHead>
-                                  <TableBody>
-                                    {stats.tests.details.map((t, i) => (
-                                      <TableRow key={i}>
-                                        <TableCell>{t.test_name}</TableCell>
-                                        <TableCell>{t.submitted_at}</TableCell>
-                                        <TableCell align="center">
-                                          {t.correct}
-                                        </TableCell>
-                                        <TableCell align="center">
-                                          {t.total_questions}
-                                        </TableCell>
-                                        <TableCell align="center">
-                                          {t.score}%
-                                        </TableCell>
-                                      </TableRow>
-                                    ))}
-                                  </TableBody>
-                                </Table>
-                              </Box>
-                            )}
                           </CardContent>
                         </Card>
                       </Grid>
-
-                      {/* ✅ Dars qatnashuvi */}
                       <Grid item xs={12} md={3}>
                         <Card>
                           <CardContent>
@@ -329,33 +331,22 @@ const Dashboard = ({ role }) => {
                               {(stats.attendance?.attended || 0) +
                                 (stats.attendance?.missed || 0)}
                             </Typography>
-                            <Typography variant="body2">
-                              Qatnashmagan: {stats.attendance?.missed || 0}
-                            </Typography>
                           </CardContent>
                         </Card>
                       </Grid>
-
-                      {/* ✅ Profil */}
                       <Grid item xs={12} md={3}>
                         <Card onClick={() => navigate("/dashboard/myprofile")}>
                           <CardContent>
-                            <Typography variant="h6">
-                              Profil ma’lumotlari
-                            </Typography>
-                            <Typography variant="body2">
-                              {stats.profile?.full_name || user?.full_name}
-                            </Typography>
-                            <Typography variant="body2">
-                              {stats.profile?.phone || user?.phone}
-                            </Typography>
+                            <Typography variant="h6">Profil</Typography>
+                            <Typography>{user?.full_name}</Typography>
+                            <Typography>{user?.phone}</Typography>
                           </CardContent>
                         </Card>
                       </Grid>
                     </>
                   ) : role === "teacher" ? (
                     <>
-                      <Grid item xs={12} md={4}>
+                      <Grid item xs={12} sm={6} md={4}>
                         <Card>
                           <CardContent>
                             <Typography variant="h6">
@@ -367,7 +358,7 @@ const Dashboard = ({ role }) => {
                           </CardContent>
                         </Card>
                       </Grid>
-                      <Grid item xs={12} md={4}>
+                      <Grid item xs={12} sm={6} md={4}>
                         <Card>
                           <CardContent>
                             <Typography variant="h6">Bitirganlar</Typography>
@@ -377,16 +368,12 @@ const Dashboard = ({ role }) => {
                           </CardContent>
                         </Card>
                       </Grid>
-                      <Grid item xs={12} md={4}>
+                      <Grid item xs={12} sm={6} md={4}>
                         <Card onClick={() => navigate("/dashboard/myprofile")}>
                           <CardContent>
                             <Typography variant="h6">O‘zim haqimda</Typography>
-                            <Typography variant="body2">
-                              {user?.full_name}
-                            </Typography>
-                            <Typography variant="body2">
-                              {user?.phone}
-                            </Typography>
+                            <Typography>{user?.full_name}</Typography>
+                            <Typography>{user?.phone}</Typography>
                           </CardContent>
                         </Card>
                       </Grid>
@@ -394,12 +381,12 @@ const Dashboard = ({ role }) => {
                   ) : null}
                 </Grid>
 
-                {/* Modal dialog */}
+                {/* Modal */}
                 <Dialog
                   open={openDialog}
                   onClose={closeDialog}
-                  maxWidth="sm"
                   fullWidth
+                  maxWidth="sm"
                 >
                   <DialogTitle>{dialogContent?.title}</DialogTitle>
                   <DialogContent>
