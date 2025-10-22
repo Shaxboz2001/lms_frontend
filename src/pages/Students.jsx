@@ -23,14 +23,18 @@ import {
   useMediaQuery,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
+import toast, { Toaster } from "react-hot-toast";
 import { api } from "../services/api";
 
 const Students = () => {
   const [students, setStudents] = useState([]);
-  const [courses, setCourses] = useState([]); // 🔹 kurslar ro‘yxati
+  const [courses, setCourses] = useState([]);
   const [open, setOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState(null);
   const [selectedTab, setSelectedTab] = useState("all");
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+
   const [form, setForm] = useState({
     username: "",
     full_name: "",
@@ -52,7 +56,8 @@ const Students = () => {
       const res = await api.get(`/students`);
       setStudents(res.data);
     } catch (err) {
-      console.error("Fetch students error:", err.response?.data || err.message);
+      toast.error("Studentlarni olishda xato!");
+      console.error(err);
     }
   };
 
@@ -62,7 +67,7 @@ const Students = () => {
       const res = await api.get(`/courses`);
       setCourses(res.data);
     } catch (err) {
-      console.error("Fetch courses error:", err.response?.data || err.message);
+      toast.error("Kurslarni olishda xato!");
     }
   };
 
@@ -71,9 +76,9 @@ const Students = () => {
     fetchCourses();
   }, []);
 
-  // 🔹 Course tanlanganda avtomatik fee qo‘yish
+  // 🔹 Course tanlanganda fee avtomatik to‘ldiriladi
   const handleCourseChange = (e) => {
-    const courseId = Number(e.target.value); // ✅ string → number
+    const courseId = Number(e.target.value);
     const selectedCourse = courses.find((c) => c.id === courseId);
     setForm({
       ...form,
@@ -98,25 +103,35 @@ const Students = () => {
 
       if (editingStudent) {
         await api.put(`/students/${editingStudent.id}`, payload);
+        toast.success("Student yangilandi ✅");
       } else {
         await api.post(`/students`, payload);
+        toast.success("Yangi student qo‘shildi ✅");
       }
 
       fetchStudents();
       handleClose();
     } catch (err) {
-      console.error("Save error:", err.response?.data || err.message);
+      toast.error(err.response?.data?.detail || "Saqlashda xato!");
     }
   };
 
-  // 🔹 O‘chirish
-  const handleDelete = async (id) => {
-    if (!window.confirm("Haqiqatan ham o‘chirmoqchimisiz?")) return;
+  // 🔹 O‘chirishni tasdiqlash oynasi
+  const confirmDelete = (id) => {
+    setDeleteTarget(id);
+    setConfirmOpen(true);
+  };
+
+  const handleDeleteConfirmed = async () => {
     try {
-      await api.delete(`/students/${id}`);
+      await api.delete(`/students/${deleteTarget}`);
+      toast.success("Student o‘chirildi 🗑️");
       fetchStudents();
     } catch (err) {
-      console.error("Delete error:", err.response?.data || err.message);
+      toast.error(err.response?.data?.detail || "O‘chirishda xato!");
+    } finally {
+      setConfirmOpen(false);
+      setDeleteTarget(null);
     }
   };
 
@@ -152,7 +167,6 @@ const Students = () => {
     setOpen(true);
   };
 
-  // 🔹 Yopish
   const handleClose = () => {
     setOpen(false);
     setEditingStudent(null);
@@ -160,6 +174,7 @@ const Students = () => {
 
   return (
     <Box p={isMobile ? 1.5 : 3}>
+      <Toaster position="top-right" />
       <Typography variant="h5" mb={2} fontWeight={600}>
         🎓 Studentlar ro‘yxati
       </Typography>
@@ -214,7 +229,7 @@ const Students = () => {
                 <TableCell>{student.full_name}</TableCell>
                 <TableCell>{student.username}</TableCell>
                 <TableCell>{student.phone}</TableCell>
-                <TableCell>{student.course?.name || "—"}</TableCell>
+                <TableCell>{student.course?.title || "—"}</TableCell>
                 <TableCell>{student.fee}</TableCell>
                 <TableCell>{student.age}</TableCell>
                 <TableCell>
@@ -240,7 +255,7 @@ const Students = () => {
                     size="small"
                     color="error"
                     variant="outlined"
-                    onClick={() => handleDelete(student.id)}
+                    onClick={() => confirmDelete(student.id)}
                   >
                     🗑️
                   </Button>
@@ -305,7 +320,6 @@ const Students = () => {
             onChange={(e) => setForm({ ...form, address: e.target.value })}
           />
 
-          {/* 🔹 Kurs tanlash */}
           <FormControl fullWidth sx={{ mt: 2 }}>
             <InputLabel>Kurs</InputLabel>
             <Select
@@ -321,7 +335,6 @@ const Students = () => {
             </Select>
           </FormControl>
 
-          {/* 🔹 Fee avtomatik to‘ldiriladi */}
           <TextField
             label="To‘lov (so‘m)"
             fullWidth
@@ -358,6 +371,24 @@ const Students = () => {
           <Button onClick={handleClose}>Bekor qilish</Button>
           <Button variant="contained" onClick={handleSave}>
             Saqlash
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* 🔹 Delete tasdiqlash oynasi */}
+      <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
+        <DialogTitle>Studentni o‘chirish</DialogTitle>
+        <DialogContent>
+          <Typography>Ushbu studentni o‘chirishni istaysizmi?</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmOpen(false)}>Bekor qilish</Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleDeleteConfirmed}
+          >
+            O‘chirish
           </Button>
         </DialogActions>
       </Dialog>

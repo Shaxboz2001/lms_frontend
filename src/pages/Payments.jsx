@@ -17,8 +17,13 @@ import {
   FormControl,
   Grid,
   Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 import { api } from "../services/api";
+import toast, { Toaster } from "react-hot-toast";
 
 const Payments = () => {
   const [payments, setPayments] = useState([]);
@@ -35,8 +40,9 @@ const Payments = () => {
     new Date().toISOString().slice(0, 7)
   );
 
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
   const role = localStorage.getItem("role");
-  const token = localStorage.getItem("token");
   const userId = localStorage.getItem("userId");
 
   useEffect(() => {
@@ -46,12 +52,15 @@ const Payments = () => {
     fetchDebts();
   }, []);
 
+  // ============================
+  // Fetch funksiyalar
+  // ============================
   const fetchPayments = async () => {
     try {
       const res = await api.get("/payments");
       setPayments(res.data);
-    } catch (err) {
-      console.error("Payment fetch error:", err.response?.data || err.message);
+    } catch {
+      toast.error("To‘lovlarni olishda xatolik!");
     }
   };
 
@@ -59,8 +68,8 @@ const Payments = () => {
     try {
       const res = await api.get("/payments/debts");
       setDebts(res.data);
-    } catch (err) {
-      console.error("Debts fetch error:", err.response?.data || err.message);
+    } catch {
+      toast.error("Qarzdorliklarni olishda xatolik!");
     }
   };
 
@@ -68,8 +77,8 @@ const Payments = () => {
     try {
       const res = await api.get("/groups");
       setGroups(res.data);
-    } catch (err) {
-      console.error("Groups fetch error:", err.response?.data || err.message);
+    } catch {
+      toast.error("Guruhlarni olishda xatolik!");
     }
   };
 
@@ -77,11 +86,14 @@ const Payments = () => {
     try {
       const res = await api.get("/users");
       setStudents(res.data.filter((u) => u.role === "student"));
-    } catch (err) {
-      console.error("Students fetch error:", err.response?.data || err.message);
+    } catch {
+      toast.error("Studentlarni olishda xatolik!");
     }
   };
 
+  // ============================
+  // Guruh bo‘yicha filtr
+  // ============================
   const handleGroupChange = (groupId) => {
     setSelectedGroup(groupId);
     if (groupId) {
@@ -93,9 +105,12 @@ const Payments = () => {
     }
   };
 
-  const addPayment = async () => {
+  // ============================
+  // To‘lov qo‘shish
+  // ============================
+  const handleAddPayment = async () => {
     if (!selectedGroup || !selectedStudent || !amount) {
-      alert("Iltimos, barcha maydonlarni to‘ldiring!");
+      toast.error("Barcha maydonlarni to‘ldiring!");
       return;
     }
 
@@ -109,29 +124,40 @@ const Payments = () => {
         month: selectedMonth,
       });
 
+      toast.success("To‘lov muvaffaqiyatli qo‘shildi ✅");
       setAmount("");
       setDescription("");
       setSelectedStudent("");
       setSelectedGroup("");
       setSelectedMonth(new Date().toISOString().slice(0, 7));
       setFilteredStudents([]);
+
       fetchPayments();
       fetchDebts();
+      setConfirmOpen(false);
     } catch (err) {
-      console.error("Payment add error:", err.response?.data || err.message);
+      toast.error(err.response?.data?.detail || "To‘lovni qo‘shishda xatolik!");
     }
   };
 
+  // ============================
+  // Helper funksiyalar
+  // ============================
   const getGroupName = (id) => groups.find((g) => g.id === id)?.name || "-";
   const getStudentName = (id) =>
     students.find((s) => s.id === id)?.username || "-";
 
   return (
     <Box sx={{ p: { xs: 2, md: 4 } }}>
+      <Toaster position="top-right" />
+
       <Typography variant="h5" sx={{ mb: 3, fontWeight: 600 }}>
         💳 To‘lovlar
       </Typography>
 
+      {/* ============================
+          🔹 To‘lov qo‘shish formasi
+      ============================ */}
       {(role === "teacher" || role === "manager" || role === "admin") && (
         <Paper
           sx={{
@@ -144,7 +170,7 @@ const Payments = () => {
           <Grid container spacing={2}>
             {/* Guruh tanlash */}
             <Grid item xs={12} sm={6} md={2.5}>
-              <FormControl fullWidth sx={{ minWidth: 160 }}>
+              <FormControl fullWidth>
                 <InputLabel>Guruh</InputLabel>
                 <Select
                   value={selectedGroup}
@@ -172,7 +198,7 @@ const Payments = () => {
             <Grid item xs={12} sm={6} md={2.5}>
               <TextField
                 fullWidth
-                label="Miqdor"
+                label="Miqdor (so‘m)"
                 type="number"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
@@ -191,11 +217,7 @@ const Payments = () => {
 
             {/* Student tanlash */}
             <Grid item xs={12} sm={6} md={2.5}>
-              <FormControl
-                fullWidth
-                sx={{ minWidth: 160 }}
-                disabled={!filteredStudents.length}
-              >
+              <FormControl fullWidth disabled={!filteredStudents.length}>
                 <InputLabel>Student</InputLabel>
                 <Select
                   value={selectedStudent}
@@ -222,18 +244,14 @@ const Payments = () => {
               />
             </Grid>
 
-            {/* Qo'shish tugmasi */}
+            {/* Qo‘shish tugmasi */}
             <Grid item xs={12} md={1.5}>
               <Button
                 fullWidth
                 variant="contained"
                 color="primary"
-                sx={{
-                  height: "100%",
-                  fontWeight: 600,
-                  textTransform: "none",
-                }}
-                onClick={addPayment}
+                sx={{ height: "100%", fontWeight: 600 }}
+                onClick={() => setConfirmOpen(true)}
               >
                 Qo‘shish
               </Button>
@@ -242,7 +260,9 @@ const Payments = () => {
         </Paper>
       )}
 
-      {/* 🔹 To‘lovlar jadvali */}
+      {/* ============================
+          📊 To‘lovlar jadvali
+      ============================ */}
       <TableContainer component={Paper} sx={{ borderRadius: 3 }}>
         <Table size="small">
           <TableHead>
@@ -278,7 +298,7 @@ const Payments = () => {
                 <TableCell>{getGroupName(p.group_id)}</TableCell>
                 <TableCell>
                   <Chip
-                    label={`${p.amount} so'm`}
+                    label={`${p.amount} so‘m`}
                     color="success"
                     variant="outlined"
                   />
@@ -303,7 +323,9 @@ const Payments = () => {
         </Typography>
       )}
 
-      {/* 🔸 Qarzdorlar jadvali */}
+      {/* ============================
+          💰 Qarzdorlar jadvali
+      ============================ */}
       <Typography variant="h6" sx={{ mt: 6, mb: 2 }}>
         💰 Qarzdorlar ro‘yxati
       </Typography>
@@ -368,6 +390,25 @@ const Payments = () => {
           Hech qanday qarzdorlik topilmadi.
         </Typography>
       )}
+
+      {/* ============================
+          🧾 Tasdiqlash modal
+      ============================ */}
+      <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
+        <DialogTitle>To‘lovni qo‘shish</DialogTitle>
+        <DialogContent>
+          <Typography>
+            <b>{getStudentName(selectedStudent)}</b> uchun <b>{amount} so‘m</b>{" "}
+            to‘lovni kiritmoqchimisiz?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmOpen(false)}>Bekor qilish</Button>
+          <Button variant="contained" onClick={handleAddPayment}>
+            Tasdiqlash
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

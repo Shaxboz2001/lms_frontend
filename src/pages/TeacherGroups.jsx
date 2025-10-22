@@ -1,5 +1,5 @@
+// src/pages/TeacherGroups.jsx
 import React, { useEffect, useState } from "react";
-import axios from "axios";
 import {
   Box,
   Card,
@@ -10,14 +10,18 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
-  List,
-  ListItem,
-  ListItemText,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
   Divider,
   IconButton,
+  Skeleton,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
-import { api, BASE_URL, config } from "../services/api";
+import toast, { Toaster } from "react-hot-toast";
+import { api } from "../services/api";
 
 export default function TeacherGroups() {
   const [groups, setGroups] = useState([]);
@@ -27,13 +31,20 @@ export default function TeacherGroups() {
   const [studentLoading, setStudentLoading] = useState(false);
   const [open, setOpen] = useState(false);
 
-  // 🔹 O'qituvchining guruhlarini olish
+  // 🔹 O‘qituvchining guruhlarini olish
   useEffect(() => {
-    api
-      .get(`/teacher/groups/`)
-      .then((res) => setGroups(res.data))
-      .catch((err) => console.error(err))
-      .finally(() => setLoading(false));
+    const fetchGroups = async () => {
+      try {
+        const res = await api.get(`/teacher/groups/`);
+        setGroups(res.data);
+      } catch (err) {
+        console.error(err);
+        toast.error("❌ Guruhlarni olishda xatolik!");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchGroups();
   }, []);
 
   // 🔹 Guruh ustiga bosilganda studentlarni yuklash
@@ -46,7 +57,8 @@ export default function TeacherGroups() {
       const res = await api.get(`/groups/${group.id}/students/`);
       setStudents(res.data);
     } catch (err) {
-      console.error("Studentlarni olishda xatolik:", err);
+      console.error(err);
+      toast.error("❌ Studentlarni olishda xatolik!");
     } finally {
       setStudentLoading(false);
     }
@@ -58,59 +70,77 @@ export default function TeacherGroups() {
     setStudents([]);
   };
 
-  if (loading)
-    return (
-      <Box sx={{ textAlign: "center", mt: 4 }}>
-        <CircularProgress />
-      </Box>
-    );
-
-  if (!groups.length)
-    return (
-      <Typography variant="h6" sx={{ mt: 4 }}>
-        Sizda hali guruhlar yo‘q.
-      </Typography>
-    );
-
   return (
-    <Box sx={{ mt: 2 }}>
-      <Typography variant="h5" gutterBottom>
-        Mening Guruhlarim
+    <Box sx={{ p: { xs: 2, md: 4 }, bgcolor: "#f9fafc", minHeight: "100vh" }}>
+      <Toaster position="top-right" />
+      <Typography variant="h4" fontWeight="bold" gutterBottom>
+        👨‍🏫 Mening Guruhlarim
       </Typography>
 
-      <Grid container spacing={2}>
-        {groups.map((group) => (
-          <Grid item xs={12} sm={6} md={4} key={group.id}>
-            <Card
-              sx={{
-                borderRadius: 2,
-                boxShadow: 3,
-                cursor: "pointer",
-                transition: "0.3s",
-                "&:hover": { boxShadow: 6, transform: "scale(1.02)" },
-              }}
-              onClick={() => handleGroupClick(group)}
-            >
-              <CardContent>
-                <Typography variant="h6">{group.name}</Typography>
-                {group.description && (
-                  <Typography color="text.secondary">
-                    {group.description}
+      {loading ? (
+        <Grid container spacing={3}>
+          {[...Array(3)].map((_, i) => (
+            <Grid item xs={12} sm={6} md={4} key={i}>
+              <Skeleton
+                variant="rectangular"
+                height={120}
+                sx={{ borderRadius: 3 }}
+              />
+            </Grid>
+          ))}
+        </Grid>
+      ) : !groups.length ? (
+        <Typography variant="h6" sx={{ mt: 4 }}>
+          Sizda hali guruhlar mavjud emas.
+        </Typography>
+      ) : (
+        <Grid container spacing={3}>
+          {groups.map((group) => (
+            <Grid item xs={12} sm={6} md={4} key={group.id}>
+              <Card
+                sx={{
+                  borderRadius: 3,
+                  boxShadow: 3,
+                  p: 1,
+                  cursor: "pointer",
+                  transition: "all 0.3s",
+                  bgcolor: "#fff",
+                  "&:hover": {
+                    transform: "translateY(-4px)",
+                    boxShadow: 5,
+                    borderLeft: "6px solid #1976d2",
+                  },
+                }}
+                onClick={() => handleGroupClick(group)}
+              >
+                <CardContent>
+                  <Typography variant="h6" color="primary" fontWeight="bold">
+                    {group.name}
                   </Typography>
-                )}
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
+                  <Typography variant="body2" color="text.secondary">
+                    Kurs: {group.course?.title || "—"}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    O‘qituvchi: {group.teacher?.full_name || "—"}
+                  </Typography>
+                  {group.description && (
+                    <Typography sx={{ mt: 1 }}>{group.description}</Typography>
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+      )}
 
       {/* 🔹 Modal: Guruhdagi studentlar */}
-      <Dialog open={open} onClose={handleClose} fullWidth>
+      <Dialog open={open} onClose={handleClose} fullWidth maxWidth="md">
         <DialogTitle
           sx={{
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
+            fontWeight: "bold",
           }}
         >
           {selectedGroup
@@ -120,27 +150,34 @@ export default function TeacherGroups() {
             <CloseIcon />
           </IconButton>
         </DialogTitle>
-        <DialogContent dividers>
+        <DialogContent dividers sx={{ bgcolor: "#fafafa" }}>
           {studentLoading ? (
             <Box sx={{ textAlign: "center", py: 3 }}>
               <CircularProgress />
             </Box>
           ) : students.length > 0 ? (
-            <List>
-              {students.map((student) => (
-                <React.Fragment key={student.id}>
-                  <ListItem>
-                    <ListItemText
-                      primary={student.full_name || student.username}
-                      secondary={`Tel: ${student.phone || "Noma’lum"}`}
-                    />
-                  </ListItem>
-                  <Divider />
-                </React.Fragment>
-              ))}
-            </List>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>#</TableCell>
+                  <TableCell>Ism Familiya</TableCell>
+                  <TableCell>Telefon</TableCell>
+                  <TableCell>Manzil</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {students.map((s, i) => (
+                  <TableRow key={s.id}>
+                    <TableCell>{i + 1}</TableCell>
+                    <TableCell>{s.full_name || s.username}</TableCell>
+                    <TableCell>{s.phone || "—"}</TableCell>
+                    <TableCell>{s.address || "—"}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           ) : (
-            <Typography color="text.secondary">
+            <Typography color="text.secondary" align="center" sx={{ py: 2 }}>
               Bu guruhda hali studentlar yo‘q.
             </Typography>
           )}

@@ -23,6 +23,8 @@ import {
   Chip,
 } from "@mui/material";
 import { api } from "../services/api";
+import toast, { Toaster } from "react-hot-toast";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 
 export default function TestPage() {
   const [role, setRole] = useState("");
@@ -44,6 +46,7 @@ export default function TestPage() {
   const [testTitle, setTestTitle] = useState("");
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailedResult, setDetailedResult] = useState(null);
+  const [confirmSubmit, setConfirmSubmit] = useState(false);
 
   const userRole = localStorage.getItem("role");
   const userId = localStorage.getItem("userId");
@@ -60,8 +63,8 @@ export default function TestPage() {
         }
         const resTests = await api.get(`/tests`);
         setTests(resTests.data);
-      } catch (err) {
-        console.error("Xato:", err);
+      } catch {
+        toast.error("Ma’lumotlarni olishda xatolik!");
       }
     };
     fetchData();
@@ -85,34 +88,37 @@ export default function TestPage() {
     try {
       const payload = { ...newTest, questions };
       await api.post(`/tests/`, payload);
-      alert("✅ Test yaratildi!");
+      toast.success("✅ Test yaratildi!");
       setNewTest({ title: "", description: "", group_id: "" });
       setQuestions([{ text: "", options: [{ text: "", is_correct: 0 }] }]);
       const res = await api.get(`/tests`);
       setTests(res.data);
-    } catch (err) {
-      alert("❌ Xatolik test yaratishda!");
+    } catch {
+      toast.error("❌ Test yaratishda xatolik!");
     }
   };
 
-  // ✅ Testni tanlash (student uchun)
+  // ✅ Testni tanlash (student)
   const handleSelectTest = async (testId) => {
-    const res = await api.get(`/tests/${testId}`);
-    setSelectedTest(res.data);
-    setSubmitted(false);
-    setResult(null);
+    try {
+      const res = await api.get(`/tests/${testId}`);
+      setSelectedTest(res.data);
+      setSubmitted(false);
+      setResult(null);
+    } catch {
+      toast.error("Testni yuklashda xato!");
+    }
   };
 
-  // ✅ O‘qituvchi natijalarni ko‘rish
+  // ✅ Natijalarni ko‘rish (teacher)
   const handleViewResults = async (testId) => {
     try {
       const res = await api.get(`/tests/${testId}/results`);
       setTestTitle(res.data.test_name);
       setTestResults(res.data.results || []);
       setSelectedTest({ id: testId });
-    } catch (err) {
-      console.error("Natijalarni olishda xato:", err);
-      alert("❌ Natijalarni olishda xatolik!");
+    } catch {
+      toast.error("Natijalarni olishda xatolik!");
     }
   };
 
@@ -124,21 +130,8 @@ export default function TestPage() {
       );
       setDetailedResult(res.data);
       setDetailOpen(true);
-    } catch (err) {
-      console.error("Batafsil natijani olishda xato:", err);
-      alert("❌ Batafsil natijani olishda xatolik!");
-    }
-  };
-
-  // ✅ Student natijasini olish
-  const handleMyResult = async (testId) => {
-    try {
-      const res = await api.get(`/tests/${testId}/my_result`);
-      setResult(res.data);
-      setSubmitted(true);
-    } catch (err) {
-      console.error("Natijani olishda xato:", err);
-      alert("❌ Siz hali bu testni topshirmagansiz yoki xatolik yuz berdi.");
+    } catch {
+      toast.error("Batafsil natijani olishda xatolik!");
     }
   };
 
@@ -156,9 +149,14 @@ export default function TestPage() {
       })),
     };
 
-    const res = await api.post(`/tests/${selectedTest.id}/submit`, payload);
-    setResult(res.data);
-    setSubmitted(true);
+    try {
+      const res = await api.post(`/tests/${selectedTest.id}/submit`, payload);
+      setResult(res.data);
+      setSubmitted(true);
+      toast.success("✅ Test yuborildi!");
+    } catch {
+      toast.error("❌ Testni yuborishda xatolik!");
+    }
   };
 
   // ===============================
@@ -167,11 +165,11 @@ export default function TestPage() {
   if (role === "teacher") {
     return (
       <Box p={4} sx={{ bgcolor: "#fafafa", minHeight: "100vh" }}>
+        <Toaster position="top-right" />
         <Typography variant="h4" gutterBottom fontWeight="bold">
           🧑‍🏫 Test Yaratish
         </Typography>
 
-        {/* Test yaratish formasi */}
         <Paper sx={{ p: 3, mb: 4 }}>
           <TextField
             label="Test nomi"
@@ -271,12 +269,11 @@ export default function TestPage() {
           </Button>
         </Paper>
 
-        {/* Natijalar */}
         <Divider sx={{ my: 3 }} />
-
         <Typography variant="h5" gutterBottom>
           📋 Yaratilgan testlar
         </Typography>
+
         {tests.map((t) => (
           <Card
             key={t.id}
@@ -285,16 +282,13 @@ export default function TestPage() {
               borderRadius: 2,
               mb: 2,
               cursor: "pointer",
-              transition: "0.3s",
               "&:hover": { boxShadow: 3 },
             }}
             onClick={() => handleViewResults(t.id)}
           >
             <CardContent>
               <Typography variant="h6">{t.title}</Typography>
-              <Typography variant="body2" color="text.secondary">
-                {t.description}
-              </Typography>
+              <Typography color="text.secondary">{t.description}</Typography>
             </CardContent>
           </Card>
         ))}
@@ -305,7 +299,7 @@ export default function TestPage() {
               📊 {testTitle} natijalari
             </Typography>
             {testResults.map((r, i) => (
-              <Card key={i} sx={{ p: 2, mb: 2, bgcolor: "#fdfdfd" }}>
+              <Card key={i} sx={{ p: 2, mb: 2 }}>
                 <Typography fontWeight="bold">
                   {i + 1}. {r.student_name} ({r.group_name})
                 </Typography>
@@ -335,7 +329,6 @@ export default function TestPage() {
           </Box>
         )}
 
-        {/* Batafsil oynasi */}
         <Dialog
           open={detailOpen}
           onClose={() => setDetailOpen(false)}
@@ -379,16 +372,13 @@ export default function TestPage() {
   // ===============================
   // 👨‍🎓 STUDENT QISMI
   // ===============================
-  // ===============================
-  // 👨‍🎓 STUDENT QISMI (yangi versiya)
-  // ===============================
   return (
     <Box p={4} sx={{ bgcolor: "#f9f9f9", minHeight: "100vh" }}>
+      <Toaster position="top-right" />
       <Typography variant="h4" gutterBottom fontWeight="bold">
         📚 Mavjud Testlar
       </Typography>
 
-      {/* Agar test tanlanmagan bo‘lsa */}
       {!selectedTest ? (
         <Box>
           {tests.length === 0 ? (
@@ -402,7 +392,6 @@ export default function TestPage() {
                 sx={{
                   mb: 2,
                   p: 2,
-                  cursor: "pointer",
                   "&:hover": { boxShadow: 3 },
                 }}
               >
@@ -411,17 +400,13 @@ export default function TestPage() {
                   <Typography color="text.secondary">
                     {t.description}
                   </Typography>
-
                   <Box sx={{ mt: 2, display: "flex", gap: 2 }}>
-                    {/* 🔹 Testni ochish tugmasi */}
                     <Button
                       variant="contained"
                       onClick={() => handleSelectTest(t.id)}
                     >
                       Tanlash
                     </Button>
-
-                    {/* 🔹 Agar test ilgari topshirilgan bo‘lsa */}
                     {t.my_result && (
                       <Button
                         variant="outlined"
@@ -434,95 +419,65 @@ export default function TestPage() {
                       </Button>
                     )}
                   </Box>
-
-                  {/* 🔹 Qisqacha natija */}
-                  {t.my_result && (
-                    <Typography sx={{ mt: 1 }}>
-                      Sizning natijangiz:{" "}
-                      <b>
-                        {t.my_result.score} / {t.my_result.total}
-                      </b>
-                    </Typography>
-                  )}
                 </CardContent>
               </Card>
             ))
           )}
         </Box>
       ) : (
-        // 🔹 Agar test tanlangan bo‘lsa
         <Paper sx={{ p: 3 }}>
           <Typography variant="h5" sx={{ mb: 2, fontWeight: "bold" }}>
             {selectedTest.title}
           </Typography>
-
-          {/* 🔹 Agar student ilgari topshirgan bo‘lsa — natijasini ko‘rsatamiz */}
-          {selectedTest.my_result ? (
-            <Paper
-              sx={{
-                p: 3,
-                mb: 3,
-                borderLeft: "6px solid green",
-                bgcolor: "#f0fff0",
-              }}
-            >
-              <Typography variant="h6">
-                ✅ {selectedTest.my_result.student_name}, sizning natijangiz:
-              </Typography>
-              <Typography>
-                <b>{selectedTest.my_result.score}</b> /{" "}
-                {selectedTest.my_result.total} to‘g‘ri javob.
-              </Typography>
-              <Button
-                sx={{ mt: 2 }}
-                variant="outlined"
-                onClick={() =>
-                  handleViewDetailed(selectedTest.id, parseInt(userId))
-                }
+          {selectedTest.questions?.map((q) => (
+            <Box key={q.id} sx={{ mb: 3 }}>
+              <Typography sx={{ mb: 1 }}>{q.text}</Typography>
+              <RadioGroup
+                onChange={(e) => handleAnswerChange(q.id, e.target.value)}
               >
-                👁 Batafsil ko‘rish
-              </Button>
-              <Button
-                sx={{ mt: 2, ml: 2 }}
-                onClick={() => setSelectedTest(null)}
-              >
-                🔙 Ortga
-              </Button>
-            </Paper>
-          ) : (
-            // 🔹 Aks holda testni yechish qismi
-            <>
-              {selectedTest.questions?.map((q) => (
-                <Box key={q.id} sx={{ mb: 3 }}>
-                  <Typography sx={{ mb: 1 }}>{q.text}</Typography>
-                  <RadioGroup
-                    onChange={(e) => handleAnswerChange(q.id, e.target.value)}
-                  >
-                    {q.options.map((opt) => (
-                      <FormControlLabel
-                        key={opt.id}
-                        value={opt.id.toString()}
-                        control={<Radio />}
-                        label={opt.text}
-                      />
-                    ))}
-                  </RadioGroup>
-                </Box>
-              ))}
-              <Button variant="contained" onClick={submitTest}>
-                Yuborish
-              </Button>
-              <Button
-                sx={{ ml: 2 }}
-                variant="outlined"
-                onClick={() => setSelectedTest(null)}
-              >
-                Ortga
-              </Button>
-            </>
-          )}
+                {q.options.map((opt) => (
+                  <FormControlLabel
+                    key={opt.id}
+                    value={opt.id.toString()}
+                    control={<Radio />}
+                    label={opt.text}
+                  />
+                ))}
+              </RadioGroup>
+            </Box>
+          ))}
+          <Button variant="contained" onClick={() => setConfirmSubmit(true)}>
+            Yuborish
+          </Button>
+          <Button
+            sx={{ ml: 2 }}
+            variant="outlined"
+            onClick={() => setSelectedTest(null)}
+          >
+            Ortga
+          </Button>
         </Paper>
       )}
+
+      {/* ✅ Tasdiqlash modal */}
+      <Dialog open={confirmSubmit} onClose={() => setConfirmSubmit(false)}>
+        <DialogTitle>Testni yuborish</DialogTitle>
+        <DialogContent>
+          <Typography>Rostdan ham testni yuborishni xohlaysizmi?</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmSubmit(false)}>Bekor qilish</Button>
+          <Button
+            variant="contained"
+            onClick={() => {
+              submitTest();
+              setConfirmSubmit(false);
+            }}
+          >
+            Tasdiqlash
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Batafsil oynasi */}
       <Dialog

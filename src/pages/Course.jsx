@@ -8,8 +8,6 @@ import {
   CardContent,
   Grid,
   Divider,
-  Snackbar,
-  Alert,
   MenuItem,
   Accordion,
   AccordionSummary,
@@ -17,14 +15,22 @@ import {
   List,
   ListItem,
   ListItemText,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { api } from "../services/api";
+import toast, { Toaster } from "react-hot-toast";
 
 export default function Courses() {
   const [courses, setCourses] = useState([]);
   const [myCourses, setMyCourses] = useState([]);
   const [teachers, setTeachers] = useState([]);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [selectedCourse, setSelectedCourse] = useState(null);
+
   const [form, setForm] = useState({
     title: "",
     subject: "",
@@ -33,22 +39,21 @@ export default function Courses() {
     start_date: "",
     price: "",
   });
-  const [msg, setMsg] = useState({ type: "", text: "" });
 
   const role = localStorage.getItem("role");
   const userId = localStorage.getItem("userId");
 
-  // ✅ Barcha kurslarni olish
+  // 🔹 Kurslarni olish
   const fetchCourses = async () => {
     try {
       const res = await api.get("/courses");
       setCourses(res.data);
     } catch (err) {
-      console.error("Fetch courses:", err.response?.data || err.message);
+      toast.error("Kurslarni olishda xatolik!");
     }
   };
 
-  // ✅ Mening kurslarimni olish (teacher/student uchun)
+  // 🔹 Foydalanuvchiga tegishli kurslarni olish
   const fetchMyCourses = async () => {
     try {
       let res;
@@ -59,17 +64,17 @@ export default function Courses() {
       }
       setMyCourses(res?.data || []);
     } catch (err) {
-      console.error("Fetch myCourses:", err.response?.data || err.message);
+      toast.error("Mening kurslarimni olishda xatolik!");
     }
   };
 
-  // ✅ O‘qituvchilarni olish
+  // 🔹 O‘qituvchilarni olish
   const fetchTeachers = async () => {
     try {
       const res = await api.get("/users");
       setTeachers(res.data.filter((u) => u.role === "teacher"));
-    } catch (err) {
-      console.error("Fetch teachers:", err.response?.data || err.message);
+    } catch {
+      toast.error("O‘qituvchilarni olishda xatolik!");
     }
   };
 
@@ -81,21 +86,19 @@ export default function Courses() {
     }
   }, [role]);
 
-  // ✅ Kurs yaratish
+  // 🔹 Kurs yaratish
   const handleSubmit = async () => {
     if (!form.title || !form.teacher_id || !form.start_date) {
-      setMsg({
-        type: "error",
-        text: "Iltimos, barcha majburiy maydonlarni to‘ldiring!",
-      });
+      toast.error("Iltimos, majburiy maydonlarni to‘ldiring!");
       return;
     }
+
     try {
       await api.post("/courses", {
         ...form,
         price: parseFloat(form.price) || 0,
       });
-      setMsg({ type: "success", text: "✅ Kurs yaratildi!" });
+      toast.success("Kurs yaratildi ✅");
       setForm({
         title: "",
         subject: "",
@@ -106,29 +109,39 @@ export default function Courses() {
       });
       fetchCourses();
     } catch (err) {
-      setMsg({ type: "error", text: "❌ Kurs yaratishda xatolik!" });
-      console.error(err);
+      toast.error(err.response?.data?.detail || "Kurs yaratishda xatolik!");
     }
   };
 
-  // ✅ Kursga yozilish
+  // 🔹 Kursga yozilish
   const enroll = async (courseId) => {
     try {
       await api.post(`/courses/${courseId}/enroll`);
-      setMsg({ type: "success", text: "✅ Kursga yozildingiz!" });
+      toast.success("Kursga yozildingiz ✅");
       fetchCourses();
       fetchMyCourses();
     } catch (err) {
-      setMsg({
-        type: "error",
-        text: err.response?.data?.detail || "❌ Xatolik!",
-      });
-      console.error(err);
+      toast.error(err.response?.data?.detail || "Xatolik yuz berdi!");
+    }
+  };
+
+  // 🔹 Kursni o‘chirish (faqat admin/manager)
+  const handleDelete = async () => {
+    try {
+      await api.delete(`/courses/${selectedCourse.id}`);
+      toast.success("Kurs o‘chirildi 🗑️");
+      fetchCourses();
+      setConfirmOpen(false);
+      setSelectedCourse(null);
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "O‘chirishda xatolik!");
     }
   };
 
   return (
     <Box sx={{ bgcolor: "#f9fafc", p: { xs: 2, md: 4 }, minHeight: "100vh" }}>
+      <Toaster position="top-right" />
+
       <Typography variant="h4" fontWeight="bold" mb={2}>
         🎓 Kurslar
       </Typography>
@@ -225,7 +238,7 @@ export default function Courses() {
             </Grid>
             <Grid item xs={12} md={6}>
               <TextField
-                label="Narxi (so'm)"
+                label="Narxi (so‘m)"
                 type="number"
                 fullWidth
                 value={form.price}
@@ -274,7 +287,14 @@ export default function Courses() {
       <Grid container spacing={3}>
         {courses.map((c) => (
           <Grid item xs={12} md={6} lg={4} key={c.id}>
-            <Card sx={{ p: 2, borderLeft: "6px solid #1976d2" }}>
+            <Card
+              sx={{
+                p: 2,
+                borderLeft: "6px solid #1976d2",
+                bgcolor: "#fff",
+                "&:hover": { boxShadow: 3 },
+              }}
+            >
               <CardContent>
                 <Typography variant="h6" color="primary">
                   {c.title}
@@ -298,15 +318,19 @@ export default function Courses() {
                       ✏️ Kursga yozilish
                     </Button>
                   )}
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    onClick={() =>
-                      window.scrollTo({ top: 0, behavior: "smooth" })
-                    }
-                  >
-                    Batafsil
-                  </Button>
+                  {(role === "admin" || role === "manager") && (
+                    <Button
+                      color="error"
+                      variant="outlined"
+                      size="small"
+                      onClick={() => {
+                        setSelectedCourse(c);
+                        setConfirmOpen(true);
+                      }}
+                    >
+                      🗑️ O‘chirish
+                    </Button>
+                  )}
                 </Box>
 
                 <Accordion sx={{ mt: 2 }}>
@@ -347,13 +371,21 @@ export default function Courses() {
         ))}
       </Grid>
 
-      <Snackbar
-        open={!!msg.text}
-        autoHideDuration={3000}
-        onClose={() => setMsg({ type: "", text: "" })}
-      >
-        <Alert severity={msg.type}>{msg.text}</Alert>
-      </Snackbar>
+      {/* 🔹 Kursni o‘chirishni tasdiqlash oynasi */}
+      <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
+        <DialogTitle>Kursni o‘chirish</DialogTitle>
+        <DialogContent>
+          <Typography>
+            “{selectedCourse?.title}” kursini o‘chirishni istaysizmi?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmOpen(false)}>Bekor qilish</Button>
+          <Button variant="contained" color="error" onClick={handleDelete}>
+            O‘chirish
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

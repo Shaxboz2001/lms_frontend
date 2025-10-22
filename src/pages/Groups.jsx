@@ -16,14 +16,20 @@ import {
   DialogActions,
 } from "@mui/material";
 import { api } from "../services/api";
+import toast, { Toaster } from "react-hot-toast";
 
 export default function Groups() {
   const [groups, setGroups] = useState([]);
   const [courses, setCourses] = useState([]);
   const [teachers, setTeachers] = useState([]);
   const [students, setStudents] = useState([]);
+
   const [open, setOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
+
+  // ✅ Delete confirmation modal
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const [formData, setFormData] = useState({
     id: null,
@@ -42,13 +48,21 @@ export default function Groups() {
   }, []);
 
   const fetchGroups = async () => {
-    const res = await api.get("/groups/");
-    setGroups(res.data);
+    try {
+      const res = await api.get("/groups/");
+      setGroups(res.data);
+    } catch {
+      toast.error("Guruhlarni olishda xatolik yuz berdi");
+    }
   };
 
   const fetchCourses = async () => {
-    const res = await api.get("/groups/courses");
-    setCourses(res.data);
+    try {
+      const res = await api.get("/groups/courses");
+      setCourses(res.data);
+    } catch {
+      toast.error("Kurslarni olishda xatolik yuz berdi");
+    }
   };
 
   // -----------------------------
@@ -65,8 +79,8 @@ export default function Groups() {
 
       setTeachers(teachersRes.data);
       setStudents(studentsRes.data);
-    } catch (err) {
-      console.error("Kurs uchun ma’lumotlarni olishda xato:", err);
+    } catch {
+      toast.error("Kurs uchun ma’lumotlarni olishda xato");
     }
   };
 
@@ -77,30 +91,45 @@ export default function Groups() {
     try {
       const payload = {
         ...formData,
-        teacher_id: Number(formData.teacher_id), // ✅ endi oddiy number
+        teacher_id: Number(formData.teacher_id),
         student_ids: formData.student_ids.map(Number),
       };
 
       if (editMode) {
         await api.put(`/groups/${formData.id}`, payload);
+        toast.success("Guruh muvaffaqiyatli yangilandi ✅");
       } else {
         await api.post("/groups/", payload);
+        toast.success("Yangi guruh yaratildi ✅");
       }
 
       setOpen(false);
       fetchGroups();
     } catch (err) {
-      console.error("Saqlashda xato:", err.response?.data || err.message);
+      toast.error(err.response?.data?.detail || "Saqlashda xato");
     }
   };
 
   // -----------------------------
   // DELETE
   // -----------------------------
-  const handleDelete = async (id) => {
-    if (window.confirm("Rostdan ham o‘chirasizmi?")) {
-      await api.delete(`/groups/${id}`);
+  const confirmDelete = (groupId) => {
+    setDeleteTarget(groupId);
+    setConfirmOpen(true);
+  };
+
+  const handleDeleteConfirmed = async () => {
+    try {
+      await api.delete(`/groups/${deleteTarget}`);
+      toast.success("Guruh o‘chirildi 🗑️");
       fetchGroups();
+    } catch (err) {
+      toast.error(
+        err.response?.data?.detail || "Guruhni o‘chirishda xatolik yuz berdi"
+      );
+    } finally {
+      setConfirmOpen(false);
+      setDeleteTarget(null);
     }
   };
 
@@ -136,6 +165,8 @@ export default function Groups() {
   // -----------------------------
   return (
     <Box sx={{ p: 3 }}>
+      <Toaster position="top-right" />
+
       <Typography variant="h5" gutterBottom>
         Guruhlar ro‘yxati
       </Typography>
@@ -170,7 +201,7 @@ export default function Groups() {
                 <Button
                   color="error"
                   size="small"
-                  onClick={() => handleDelete(g.id)}
+                  onClick={() => confirmDelete(g.id)}
                 >
                   Delete
                 </Button>
@@ -180,7 +211,7 @@ export default function Groups() {
         </TableBody>
       </Table>
 
-      {/* MODAL */}
+      {/* MODAL: CREATE/EDIT */}
       <Dialog open={open} onClose={() => setOpen(false)} fullWidth>
         <DialogTitle>
           {editMode ? "Guruhni tahrirlash" : "Yangi guruh yaratish"}
@@ -252,6 +283,26 @@ export default function Groups() {
           <Button onClick={() => setOpen(false)}>Bekor qilish</Button>
           <Button variant="contained" onClick={handleSave}>
             Saqlash
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* MODAL: DELETE CONFIRMATION */}
+      <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
+        <DialogTitle>O‘chirishni tasdiqlang</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Ushbu guruhni o‘chirishni istaysizmi? Amalni qaytarib bo‘lmaydi.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmOpen(false)}>Bekor qilish</Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleDeleteConfirmed}
+          >
+            O‘chirish
           </Button>
         </DialogActions>
       </Dialog>

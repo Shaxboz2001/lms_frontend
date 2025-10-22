@@ -12,9 +12,10 @@ import {
   MenuItem,
   TextField,
   CircularProgress,
+  Paper,
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
-import axios from "axios";
+import toast, { Toaster } from "react-hot-toast";
 import { api } from "../services/api";
 
 const monthNames = [
@@ -45,15 +46,15 @@ export default function Attendance() {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [loadingReport, setLoadingReport] = useState(false);
 
-  // Guruhlarni yuklash
+  // 🔹 Guruhlarni yuklash
   useEffect(() => {
     api
       .get(`/teacher/groups/`)
       .then((res) => setGroups(res.data))
-      .catch((err) => console.error(err));
+      .catch((err) => toast.error("Guruhlarni olishda xato!"));
   }, []);
 
-  // Guruhdagi o‘quvchilarni yuklash
+  // 🔹 Guruhdagi o‘quvchilarni yuklash
   const loadStudents = async (groupId) => {
     if (!groupId) return;
     setLoading(true);
@@ -63,171 +64,181 @@ export default function Attendance() {
       const initial = {};
       res.data.forEach((s) => (initial[s.id] = true));
       setAttendance(initial);
+      toast.success("O‘quvchilar ro‘yxati yuklandi!");
     } catch (err) {
-      console.error(err);
+      toast.error("O‘quvchilarni olishda xato!");
     } finally {
       setLoading(false);
     }
   };
 
-  // Checkbox toggle
+  // 🔹 Checkbox toggle
   const handleToggle = (id) => {
     setAttendance((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  // Yo‘qlama saqlash
+  // 🔹 Yo‘qlama saqlash
   const handleSubmit = async () => {
-    if (!selectedGroup) {
-      alert("❌ Iltimos guruhni tanlang!");
-      return;
-    }
+    if (!selectedGroup) return toast.error("Iltimos guruhni tanlang!");
+    if (students.length === 0) return toast.error("Guruhda o‘quvchi yo‘q!");
+
     const records = students.map((s) => ({
       student_id: s.id,
       is_present: attendance[s.id],
     }));
+
     try {
       await api.post(`/attendance/`, {
         group_id: selectedGroup,
         records,
         date_: selectedDate,
       });
-      alert("✅ Yo‘qlama saqlandi!");
+      toast.success("✅ Yo‘qlama saqlandi!");
       loadReport();
     } catch (err) {
-      alert("❌ Shu kunga oldin yozilgan yo‘qlama mavjud bo‘lishi mumkin!");
+      toast.error("❌ Bu kunga allaqachon yo‘qlama kiritilgan!");
     }
   };
 
-  // Hisobot yuklash
+  // 🔹 Hisobot yuklash
   const loadReport = async () => {
-    if (!selectedGroup) return;
+    if (!selectedGroup) return toast.error("Iltimos guruhni tanlang!");
     setLoadingReport(true);
     try {
       const res = await api.get(`/attendance/report/${selectedGroup}`, {
         params: { month: selectedMonth },
       });
       setReportData(res.data);
-    } catch (err) {
-      console.error(err);
+    } catch {
+      toast.error("Hisobotni olishda xato!");
     } finally {
       setLoadingReport(false);
     }
   };
 
-  // DataGrid columns
+  // 🔹 DataGrid ustunlar
   const columns = reportData?.day_list
     ? [
         { field: "id", headerName: "№", width: 60 },
-        { field: "fullname", headerName: "Fullname", width: 200 },
+        { field: "fullname", headerName: "O‘quvchi", width: 200 },
         ...reportData.day_list.map((day) => ({
           field: day,
           headerName: day,
-          width: 100,
+          width: 80,
           headerAlign: "center",
           align: "center",
         })),
       ]
     : [];
 
-  // DataGrid rows
+  // 🔹 DataGrid qatorlar
   const rows = reportData?.rows
     ? reportData.rows.map((r, idx) => ({ id: idx + 1, ...r }))
     : [];
 
   return (
-    <Box sx={{ p: 4 }}>
-      <Typography variant="h5" gutterBottom>
-        📋 Yo‘qlama qilish
+    <Box sx={{ p: 4, bgcolor: "#f8fafc", minHeight: "100vh" }}>
+      <Toaster position="top-right" />
+      <Typography variant="h4" gutterBottom fontWeight="bold">
+        📋 Yo‘qlama tizimi
       </Typography>
 
       {/* Guruh tanlash */}
-      <FormControl fullWidth sx={{ mb: 2 }}>
-        <InputLabel>Guruhni tanlang</InputLabel>
-        <Select
-          value={selectedGroup}
-          label="Guruhni tanlang"
-          onChange={(e) => {
-            setSelectedGroup(e.target.value);
-            loadStudents(e.target.value);
-          }}
-        >
-          {groups.map((g) => (
-            <MenuItem key={g.id} value={g.id}>
-              {g.name}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
+      <Paper sx={{ p: 3, mb: 4, borderRadius: 3, boxShadow: 2 }}>
+        <FormControl fullWidth sx={{ mb: 2 }}>
+          <InputLabel>Guruhni tanlang</InputLabel>
+          <Select
+            value={selectedGroup}
+            label="Guruhni tanlang"
+            onChange={(e) => {
+              setSelectedGroup(e.target.value);
+              loadStudents(e.target.value);
+            }}
+          >
+            {groups.map((g) => (
+              <MenuItem key={g.id} value={g.id}>
+                {g.name}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
 
-      {/* Sana tanlash */}
-      <TextField
-        type="date"
-        label="Sana"
-        value={selectedDate}
-        onChange={(e) => setSelectedDate(e.target.value)}
-        sx={{ mb: 3 }}
-        fullWidth
-        InputLabelProps={{ shrink: true }}
-      />
+        {/* Sana tanlash */}
+        <TextField
+          type="date"
+          label="Sana"
+          value={selectedDate}
+          onChange={(e) => setSelectedDate(e.target.value)}
+          sx={{ mb: 3 }}
+          fullWidth
+          InputLabelProps={{ shrink: true }}
+        />
 
-      {/* O‘quvchilar ro‘yxati (checkbox) */}
-      {loading ? (
-        <Box sx={{ display: "flex", justifyContent: "center", my: 2 }}>
-          <CircularProgress />
-        </Box>
-      ) : (
-        students.map((s, idx) => (
-          <Card key={s.id} sx={{ mb: 1 }}>
-            <CardContent
-              sx={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <Typography>
-                {idx + 1}. {s.full_name}
-              </Typography>
-              <Checkbox
-                checked={attendance[s.id] || false}
-                onChange={() => handleToggle(s.id)}
-              />
-            </CardContent>
-          </Card>
-        ))
-      )}
+        {/* O‘quvchilar ro‘yxati */}
+        {loading ? (
+          <Box sx={{ display: "flex", justifyContent: "center", my: 3 }}>
+            <CircularProgress />
+          </Box>
+        ) : students.length > 0 ? (
+          <Box sx={{ maxHeight: 300, overflowY: "auto", mb: 2 }}>
+            {students.map((s, idx) => (
+              <Card key={s.id} sx={{ mb: 1, borderRadius: 2 }}>
+                <CardContent
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <Typography>
+                    {idx + 1}. {s.full_name}
+                  </Typography>
+                  <Checkbox
+                    checked={attendance[s.id] || false}
+                    onChange={() => handleToggle(s.id)}
+                  />
+                </CardContent>
+              </Card>
+            ))}
+          </Box>
+        ) : (
+          <Typography color="text.secondary">
+            O‘quvchilar hali yuklanmagan.
+          </Typography>
+        )}
 
-      {/* Saqlash */}
-      {students.length > 0 && (
-        <Button
-          variant="contained"
-          color="primary"
-          sx={{ mb: 3, height: 50 }}
-          onClick={handleSubmit}
-        >
-          Saqlash
-        </Button>
-      )}
+        {students.length > 0 && (
+          <Button
+            variant="contained"
+            color="primary"
+            fullWidth
+            sx={{ height: 50, fontWeight: 600 }}
+            onClick={handleSubmit}
+          >
+            💾 Saqlash
+          </Button>
+        )}
+      </Paper>
 
-      {/* Hisobot va oy select */}
+      {/* Hisobot va oy tanlash */}
       <Box
         sx={{
           display: "flex",
           alignItems: "center",
           gap: 2,
-          mb: 2,
+          mb: 3,
           flexWrap: "wrap",
         }}
       >
         <Button
           variant="outlined"
           color="secondary"
-          sx={{ height: 40 }}
           onClick={loadReport}
+          sx={{ height: 45 }}
         >
-          Hisobot
+          📊 Hisobot
         </Button>
-        <FormControl sx={{ width: 150 }}>
+        <FormControl sx={{ width: 180 }}>
           <InputLabel>Oy</InputLabel>
           <Select
             value={selectedMonth}
@@ -243,15 +254,16 @@ export default function Attendance() {
         </FormControl>
       </Box>
 
-      {/* DataGrid hisobot */}
+      {/* Hisobot jadvali */}
       {loadingReport ? (
-        <Box sx={{ display: "flex", justifyContent: "center", my: 2 }}>
+        <Box sx={{ display: "flex", justifyContent: "center", my: 3 }}>
           <CircularProgress />
         </Box>
-      ) : reportData && reportData.message ? (
-        <Typography>{reportData.message}</Typography>
-      ) : reportData ? (
-        <Box sx={{ height: 500, width: "100%" }}>
+      ) : reportData && reportData.rows?.length > 0 ? (
+        <Paper sx={{ p: 2, borderRadius: 3 }}>
+          <Typography variant="h6" sx={{ mb: 2 }}>
+            📅 {monthNames[selectedMonth - 1]} hisobot
+          </Typography>
           <DataGrid
             rows={rows}
             columns={columns}
@@ -260,8 +272,12 @@ export default function Attendance() {
             disableSelectionOnClick
             autoHeight
           />
-        </Box>
-      ) : null}
+        </Paper>
+      ) : (
+        <Typography color="text.secondary" sx={{ mt: 2 }}>
+          Hozircha hisobot ma’lumotlari yo‘q.
+        </Typography>
+      )}
     </Box>
   );
 }
