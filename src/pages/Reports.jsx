@@ -159,7 +159,11 @@ const Reports = () => {
       </FormControl>
 
       {/* 🔹 Statistika (responsive cards) */}
-      <Grid container spacing={2}>
+      <Grid
+        container
+        rowSpacing={{ xs: 2.5, sm: 3, md: 3 }}
+        columnSpacing={{ xs: 2, sm: 2.5, md: 3 }}
+      >
         {[
           {
             title: "👥 O‘quvchilar",
@@ -208,8 +212,8 @@ const Reports = () => {
         📈 Oxirgi 7 kunlik to‘lovlar
       </Typography>
 
-      <Paper sx={{ p: 2, borderRadius: 3, boxShadow: 2 }}>
-        <Box sx={{ width: "100%", height: 300 }}>
+      <Paper sx={{ p: 2, borderRadius: 3, boxShadow: 2, overflowX: "auto" }}>
+        <Box sx={{ width: "100%", height: 300, minWidth: 300 }}>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={trend}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -227,8 +231,8 @@ const Reports = () => {
         👩‍🎓 O‘quvchilar tahlili
       </Typography>
 
-      <Paper sx={{ p: 2, borderRadius: 3, boxShadow: 2 }}>
-        <Box sx={{ width: "100%", height: 300 }}>
+      <Paper sx={{ p: 2, borderRadius: 3, boxShadow: 2, overflowX: "auto" }}>
+        <Box sx={{ width: "100%", height: 300, minWidth: 300 }}>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart
               data={[
