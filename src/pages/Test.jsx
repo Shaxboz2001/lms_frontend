@@ -21,10 +21,14 @@ import {
   DialogContent,
   DialogActions,
   Chip,
+  List,
+  ListItem,
+  ListItemText,
+  IconButton,
 } from "@mui/material";
 import { api } from "../services/api";
 import toast, { Toaster } from "react-hot-toast";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import HistoryIcon from "@mui/icons-material/History";
 
 export default function TestPage() {
   const [role, setRole] = useState("");
@@ -47,6 +51,11 @@ export default function TestPage() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailedResult, setDetailedResult] = useState(null);
   const [confirmSubmit, setConfirmSubmit] = useState(false);
+
+  // new states for student attempts
+  const [attemptsOpen, setAttemptsOpen] = useState(false);
+  const [attempts, setAttempts] = useState([]);
+  const [loadingAttempts, setLoadingAttempts] = useState(false);
 
   const userRole = localStorage.getItem("role");
   const userId = localStorage.getItem("userId");
@@ -123,15 +132,31 @@ export default function TestPage() {
   };
 
   // ✅ Batafsil natijani olish
-  const handleViewDetailed = async (testId, studentId) => {
+  const handleViewDetailed = async (testId, studentId, submitted_at = null) => {
     try {
-      const res = await api.get(
-        `/tests/${testId}/detailed_result/${studentId}`
-      );
+      let url = `/tests/${testId}/detailed_result/${studentId}`;
+      if (submitted_at) {
+        url += `?submitted_at=${encodeURIComponent(submitted_at)}`;
+      }
+      const res = await api.get(url);
       setDetailedResult(res.data);
       setDetailOpen(true);
     } catch {
       toast.error("Batafsil natijani olishda xatolik!");
+    }
+  };
+
+  // ✅ Avvalgi urinishlarni olish
+  const handleViewAttempts = async (testId) => {
+    setLoadingAttempts(true);
+    try {
+      const res = await api.get(`/tests/${testId}/my_attempts`);
+      setAttempts(res.data.attempts || []);
+      setAttemptsOpen(true);
+    } catch {
+      toast.error("Avvalgi natijalarni olishda xatolik!");
+    } finally {
+      setLoadingAttempts(false);
     }
   };
 
@@ -292,79 +317,6 @@ export default function TestPage() {
             </CardContent>
           </Card>
         ))}
-
-        {testResults.length > 0 && (
-          <Box mt={5}>
-            <Typography variant="h5" gutterBottom>
-              📊 {testTitle} natijalari
-            </Typography>
-            {testResults.map((r, i) => (
-              <Card key={i} sx={{ p: 2, mb: 2 }}>
-                <Typography fontWeight="bold">
-                  {i + 1}. {r.student_name} ({r.group_name})
-                </Typography>
-                <Typography>
-                  Ball: <b>{r.score}</b> / {r.total}
-                </Typography>
-                <LinearProgress
-                  variant="determinate"
-                  value={(r.score / r.total) * 100}
-                  sx={{ mt: 1, borderRadius: 1 }}
-                />
-                <Button
-                  size="small"
-                  sx={{ mt: 1 }}
-                  variant="outlined"
-                  onClick={() =>
-                    handleViewDetailed(
-                      selectedTest.id || r.test_id,
-                      r.student_id
-                    )
-                  }
-                >
-                  👁 Batafsil ko‘rish
-                </Button>
-              </Card>
-            ))}
-          </Box>
-        )}
-
-        <Dialog
-          open={detailOpen}
-          onClose={() => setDetailOpen(false)}
-          maxWidth="md"
-          fullWidth
-        >
-          <DialogTitle>
-            🧾 {detailedResult?.test_name} — {detailedResult?.student_name}
-          </DialogTitle>
-          <DialogContent dividers>
-            {detailedResult?.details?.map((q, i) => (
-              <Box key={i} sx={{ mb: 2 }}>
-                <Typography fontWeight="bold">
-                  {i + 1}. {q.question_text}
-                </Typography>
-                {q.options.map((o) => (
-                  <Chip
-                    key={o.id}
-                    label={o.text}
-                    color={
-                      o.is_correct
-                        ? "success"
-                        : o.is_selected
-                        ? "error"
-                        : "default"
-                    }
-                    sx={{ m: 0.5 }}
-                  />
-                ))}
-              </Box>
-            ))}
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setDetailOpen(false)}>Yopish</Button>
-          </DialogActions>
-        </Dialog>
       </Box>
     );
   }
@@ -373,7 +325,7 @@ export default function TestPage() {
   // 👨‍🎓 STUDENT QISMI
   // ===============================
   return (
-    <Box p={4} sx={{ bgcolor: "#f9f9f9", minHeight: "100vh" }}>
+    <Box p={3} sx={{ bgcolor: "#f9f9f9", minHeight: "100vh" }}>
       <Toaster position="top-right" />
       <Typography variant="h4" gutterBottom fontWeight="bold">
         📚 Mavjud Testlar
@@ -389,35 +341,34 @@ export default function TestPage() {
             tests.map((t) => (
               <Card
                 key={t.id}
-                sx={{
-                  mb: 2,
-                  p: 2,
-                  "&:hover": { boxShadow: 3 },
-                }}
+                sx={{ mb: 2, p: 2, "&:hover": { boxShadow: 3 } }}
               >
                 <CardContent>
                   <Typography variant="h6">{t.title}</Typography>
                   <Typography color="text.secondary">
                     {t.description}
                   </Typography>
-                  <Box sx={{ mt: 2, display: "flex", gap: 2 }}>
+                  <Box
+                    sx={{
+                      mt: 2,
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: 2,
+                    }}
+                  >
                     <Button
                       variant="contained"
                       onClick={() => handleSelectTest(t.id)}
                     >
-                      Tanlash
+                      Testni boshlash
                     </Button>
-                    {t.my_result && (
-                      <Button
-                        variant="outlined"
-                        color="success"
-                        onClick={() =>
-                          handleViewDetailed(t.id, parseInt(userId))
-                        }
-                      >
-                        👁 Natijamni ko‘rish
-                      </Button>
-                    )}
+                    <Button
+                      variant="outlined"
+                      startIcon={<HistoryIcon />}
+                      onClick={() => handleViewAttempts(t.id)}
+                    >
+                      Avvalgi natijalar
+                    </Button>
                   </Box>
                 </CardContent>
               </Card>
@@ -459,27 +410,46 @@ export default function TestPage() {
         </Paper>
       )}
 
-      {/* ✅ Tasdiqlash modal */}
-      <Dialog open={confirmSubmit} onClose={() => setConfirmSubmit(false)}>
-        <DialogTitle>Testni yuborish</DialogTitle>
-        <DialogContent>
-          <Typography>Rostdan ham testni yuborishni xohlaysizmi?</Typography>
+      {/* ✅ Avvalgi natijalar modal */}
+      <Dialog open={attemptsOpen} onClose={() => setAttemptsOpen(false)}>
+        <DialogTitle>📜 Avvalgi natijalar</DialogTitle>
+        <DialogContent dividers>
+          {loadingAttempts ? (
+            <Typography>Yuklanmoqda...</Typography>
+          ) : attempts.length === 0 ? (
+            <Typography color="text.secondary">
+              Siz hali bu testni yechmagansiz
+            </Typography>
+          ) : (
+            <List>
+              {attempts.map((a, i) => (
+                <ListItem
+                  key={i}
+                  button
+                  onClick={() => {
+                    handleViewDetailed(
+                      tests.find((t) => t.id)?.id,
+                      parseInt(userId),
+                      a.submitted_at
+                    );
+                    setAttemptsOpen(false);
+                  }}
+                >
+                  <ListItemText
+                    primary={`Urinish ${i + 1} — ${a.score}/${a.total}`}
+                    secondary={`Vaqt: ${a.submitted_at}`}
+                  />
+                </ListItem>
+              ))}
+            </List>
+          )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setConfirmSubmit(false)}>Bekor qilish</Button>
-          <Button
-            variant="contained"
-            onClick={() => {
-              submitTest();
-              setConfirmSubmit(false);
-            }}
-          >
-            Tasdiqlash
-          </Button>
+          <Button onClick={() => setAttemptsOpen(false)}>Yopish</Button>
         </DialogActions>
       </Dialog>
 
-      {/* Batafsil oynasi */}
+      {/* ✅ Batafsil natija modal */}
       <Dialog
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
@@ -514,6 +484,26 @@ export default function TestPage() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDetailOpen(false)}>Yopish</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ✅ Tasdiqlash modal */}
+      <Dialog open={confirmSubmit} onClose={() => setConfirmSubmit(false)}>
+        <DialogTitle>Testni yuborish</DialogTitle>
+        <DialogContent>
+          <Typography>Rostdan ham testni yuborishni xohlaysizmi?</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmSubmit(false)}>Bekor qilish</Button>
+          <Button
+            variant="contained"
+            onClick={() => {
+              submitTest();
+              setConfirmSubmit(false);
+            }}
+          >
+            Tasdiqlash
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>
