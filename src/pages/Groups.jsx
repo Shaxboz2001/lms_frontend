@@ -136,7 +136,11 @@ export default function Groups() {
   // -----------------------------
   // EDIT / CREATE modal
   // -----------------------------
-  const handleEdit = (group) => {
+  const handleEdit = async (group) => {
+    // 1️⃣ Kursga tegishli teacher & studentlarni chaqirish
+    await handleCourseChange(group.course_id);
+
+    // 2️⃣ Formani to‘ldirish
     setFormData({
       id: group.id,
       name: group.name,
@@ -144,6 +148,7 @@ export default function Groups() {
       teacher_id: group.teacher_id || "",
       student_ids: group.students?.map((s) => s.id) || [],
     });
+
     setEditMode(true);
     setOpen(true);
   };
