@@ -43,6 +43,7 @@ import Courses from "./Course";
 import MyProfile from "./MyProfile";
 import TeacherGroups from "./TeacherGroups";
 import Reports from "./Reports";
+import Payroll from "./Payroll";
 
 const drawerWidth = 240;
 
@@ -72,6 +73,7 @@ const Dashboard = ({ role }) => {
       { name: "Guruhlar", path: "guruhlar", component: <Groups /> },
       { name: "To‘lovlar", path: "tolovlar", component: <Payments /> },
       { name: "Hisobotlar", path: "hisobotlar", component: <Reports /> },
+      { name: "Maoshlar", path: "maoshlar", component: <Payroll /> },
       {
         name: "Ro‘yxatdan o‘tkazish",
         path: "register",
