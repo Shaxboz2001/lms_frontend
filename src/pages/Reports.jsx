@@ -13,8 +13,9 @@ import {
   CardContent,
   Button,
   Stack,
+  useMediaQuery,
 } from "@mui/material";
-import { api, BASE_URL } from "../services/api";
+import { api } from "../services/api";
 import toast, { Toaster } from "react-hot-toast";
 import {
   LineChart,
@@ -28,12 +29,18 @@ import {
   Bar,
 } from "recharts";
 import { FileDownload } from "@mui/icons-material";
+import fileDownload from "js-file-download";
+import { useTheme } from "@mui/material/styles";
 
 const Reports = () => {
   const [period, setPeriod] = useState("daily");
   const [report, setReport] = useState(null);
   const [trend, setTrend] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState(false);
+
+  const theme = useTheme();
+  const isSmall = useMediaQuery(theme.breakpoints.down("sm"));
 
   useEffect(() => {
     fetchReport();
@@ -55,11 +62,25 @@ const Reports = () => {
     }
   };
 
-  const handleDownload = (format) => {
-    window.open(
-      `${BASE_URL}/reports/export?period=${period}&format=${format}`,
-      "_blank"
-    );
+  // ✅ Faylni token bilan yuklash
+  const handleDownload = async (format) => {
+    setDownloading(true);
+    try {
+      const response = await api.get(
+        `/reports/export?period=${period}&format=${format}`,
+        { responseType: "blob" }
+      );
+      const filename = `report_${period}.${
+        format === "excel" ? "xlsx" : "pdf"
+      }`;
+      fileDownload(response.data, filename);
+      toast.success(`${format.toUpperCase()} fayl yuklandi!`);
+    } catch (error) {
+      console.error(error);
+      toast.error("Faylni yuklashda xatolik!");
+    } finally {
+      setDownloading(false);
+    }
   };
 
   if (loading)
@@ -84,39 +105,46 @@ const Reports = () => {
       <Box
         sx={{
           display: "flex",
-          flexDirection: { xs: "column", sm: "row" },
+          flexDirection: { xs: "column", md: "row" },
           justifyContent: "space-between",
-          alignItems: { xs: "flex-start", sm: "center" },
+          alignItems: { xs: "flex-start", md: "center" },
           mb: 3,
           gap: 2,
-          flexWrap: "wrap",
         }}
       >
         <Typography variant="h5" sx={{ fontWeight: 600 }}>
           📊 Hisobotlar paneli ({period})
         </Typography>
 
-        <Stack direction="row" spacing={1}>
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          spacing={1}
+          sx={{ width: { xs: "100%", sm: "auto" } }}
+        >
           <Button
             variant="outlined"
             color="primary"
             startIcon={<FileDownload />}
+            fullWidth={isSmall}
             onClick={() => handleDownload("excel")}
+            disabled={downloading}
           >
-            Excel yuklash
+            {downloading ? "Yuklanmoqda..." : "Excel yuklash"}
           </Button>
           <Button
             variant="outlined"
             color="secondary"
             startIcon={<FileDownload />}
+            fullWidth={isSmall}
             onClick={() => handleDownload("pdf")}
+            disabled={downloading}
           >
-            PDF yuklash
+            {downloading ? "Yuklanmoqda..." : "PDF yuklash"}
           </Button>
         </Stack>
       </Box>
 
-      {/* 🔹 Hisobot davri tanlash */}
+      {/* 🔹 Davr tanlash */}
       <FormControl sx={{ minWidth: 180, mb: 3 }}>
         <InputLabel>Davr</InputLabel>
         <Select
@@ -130,7 +158,7 @@ const Reports = () => {
         </Select>
       </FormControl>
 
-      {/* 🔹 Umumiy Statistika */}
+      {/* 🔹 Statistika */}
       <Grid container spacing={2}>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
@@ -188,16 +216,25 @@ const Reports = () => {
         📈 Oxirgi 7 kunlik to‘lovlar
       </Typography>
 
-      <Paper sx={{ p: 2, borderRadius: 3, boxShadow: 2 }}>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={trend}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="date" />
-            <YAxis />
-            <Tooltip />
-            <Bar dataKey="total" fill="#1976d2" name="To‘lovlar (so‘m)" />
-          </BarChart>
-        </ResponsiveContainer>
+      <Paper
+        sx={{
+          p: 2,
+          borderRadius: 3,
+          boxShadow: 2,
+          overflowX: "auto",
+        }}
+      >
+        <Box sx={{ width: "100%", height: 300, minWidth: 300 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={trend}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="date" />
+              <YAxis />
+              <Tooltip />
+              <Bar dataKey="total" fill="#1976d2" name="To‘lovlar (so‘m)" />
+            </BarChart>
+          </ResponsiveContainer>
+        </Box>
       </Paper>
 
       {/* 🔹 O‘quvchilar tahlili */}
@@ -205,32 +242,36 @@ const Reports = () => {
         👩‍🎓 O‘quvchilar tahlili
       </Typography>
 
-      <Paper sx={{ p: 2, borderRadius: 3, boxShadow: 2 }}>
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart
-            data={[
-              {
-                name: "Leads",
-                count: report.students.leads,
-              },
-              {
-                name: "O‘qiyotgan",
-                count: report.students.studying,
-              },
-            ]}
-          >
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="name" />
-            <YAxis allowDecimals={false} />
-            <Tooltip />
-            <Line type="monotone" dataKey="count" stroke="#ff7300" />
-          </LineChart>
-        </ResponsiveContainer>
+      <Paper
+        sx={{
+          p: 2,
+          borderRadius: 3,
+          boxShadow: 2,
+          overflowX: "auto",
+        }}
+      >
+        <Box sx={{ width: "100%", height: 300, minWidth: 300 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart
+              data={[
+                { name: "Leads", count: report.students.leads },
+                { name: "O‘qiyotgan", count: report.students.studying },
+              ]}
+            >
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis allowDecimals={false} />
+              <Tooltip />
+              <Line type="monotone" dataKey="count" stroke="#ff7300" />
+            </LineChart>
+          </ResponsiveContainer>
+        </Box>
       </Paper>
     </Box>
   );
 };
 
+// 🔹 StatCard komponenti
 const StatCard = ({ title, value, sub }) => (
   <Card
     sx={{
@@ -244,14 +285,25 @@ const StatCard = ({ title, value, sub }) => (
     }}
   >
     <CardContent>
-      <Typography variant="h6">{title}</Typography>
+      <Typography variant="h6" sx={{ fontSize: { xs: "1rem", md: "1.1rem" } }}>
+        {title}
+      </Typography>
       <Typography
         variant="h5"
-        sx={{ fontWeight: 700, color: "#1976d2", mt: 1 }}
+        sx={{
+          fontWeight: 700,
+          color: "#1976d2",
+          mt: 1,
+          fontSize: { xs: "1.2rem", md: "1.5rem" },
+        }}
       >
         {value}
       </Typography>
-      <Typography variant="body2" color="text.secondary">
+      <Typography
+        variant="body2"
+        color="text.secondary"
+        sx={{ fontSize: { xs: "0.8rem", md: "0.9rem" } }}
+      >
         {sub}
       </Typography>
     </CardContent>
