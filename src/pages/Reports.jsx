@@ -15,6 +15,7 @@ import {
   Stack,
   useMediaQuery,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import { api } from "../services/api";
 import toast, { Toaster } from "react-hot-toast";
 import {
@@ -30,7 +31,6 @@ import {
 } from "recharts";
 import { FileDownload } from "@mui/icons-material";
 import fileDownload from "js-file-download";
-import { useTheme } from "@mui/material/styles";
 
 const Reports = () => {
   const [period, setPeriod] = useState("daily");
@@ -158,57 +158,49 @@ const Reports = () => {
         </Select>
       </FormControl>
 
-      {/* 🔹 Statistika */}
+      {/* 🔹 Statistika (responsive cards) */}
       <Grid container spacing={2}>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard
-            title="👥 O‘quvchilar"
-            value={report.students.total}
-            sub={`Yangi: ${report.students.new}`}
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard
-            title="🎓 Konversiya"
-            value={`${report.students.conversion_rate}%`}
-            sub={`Leads: ${report.students.leads}`}
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard
-            title="📅 Qatnashuv"
-            value={`${report.attendance.attendance_rate}%`}
-            sub={`Jami: ${report.attendance.total_records}`}
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard
-            title="💰 To‘lovlar"
-            value={`${report.payments.total_amount.toLocaleString()} so‘m`}
-            sub={`O‘rtacha: ${report.payments.average_payment.toLocaleString()} so‘m`}
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard
-            title="💸 Qarzdorlar"
-            value={report.payments.debtor_count}
-            sub="To‘lov qilmaganlar"
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard
-            title="🏫 Guruhlar"
-            value={report.groups.active_groups}
-            sub={`Yangi boshlangan: ${report.groups.new_started}`}
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard
-            title="📚 Kurslar"
-            value={report.courses.active}
-            sub={`Kutilayotgan: ${report.courses.upcoming}`}
-          />
-        </Grid>
+        {[
+          {
+            title: "👥 O‘quvchilar",
+            value: report.students.total,
+            sub: `Yangi: ${report.students.new}`,
+          },
+          {
+            title: "🎓 Konversiya",
+            value: `${report.students.conversion_rate}%`,
+            sub: `Leads: ${report.students.leads}`,
+          },
+          {
+            title: "📅 Qatnashuv",
+            value: `${report.attendance.attendance_rate}%`,
+            sub: `Jami: ${report.attendance.total_records}`,
+          },
+          {
+            title: "💰 To‘lovlar",
+            value: `${report.payments.total_amount.toLocaleString()} so‘m`,
+            sub: `O‘rtacha: ${report.payments.average_payment.toLocaleString()} so‘m`,
+          },
+          {
+            title: "💸 Qarzdorlar",
+            value: report.payments.debtor_count,
+            sub: "To‘lov qilmaganlar",
+          },
+          {
+            title: "🏫 Guruhlar",
+            value: report.groups.active_groups,
+            sub: `Yangi boshlangan: ${report.groups.new_started}`,
+          },
+          {
+            title: "📚 Kurslar",
+            value: report.courses.active,
+            sub: `Kutilayotgan: ${report.courses.upcoming}`,
+          },
+        ].map((item, index) => (
+          <Grid item xs={12} sm={6} md={4} lg={3} key={index}>
+            <StatCard {...item} />
+          </Grid>
+        ))}
       </Grid>
 
       {/* 🔹 To‘lovlar trendi */}
@@ -216,15 +208,8 @@ const Reports = () => {
         📈 Oxirgi 7 kunlik to‘lovlar
       </Typography>
 
-      <Paper
-        sx={{
-          p: 2,
-          borderRadius: 3,
-          boxShadow: 2,
-          overflowX: "auto",
-        }}
-      >
-        <Box sx={{ width: "100%", height: 300, minWidth: 300 }}>
+      <Paper sx={{ p: 2, borderRadius: 3, boxShadow: 2 }}>
+        <Box sx={{ width: "100%", height: 300 }}>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={trend}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -242,15 +227,8 @@ const Reports = () => {
         👩‍🎓 O‘quvchilar tahlili
       </Typography>
 
-      <Paper
-        sx={{
-          p: 2,
-          borderRadius: 3,
-          boxShadow: 2,
-          overflowX: "auto",
-        }}
-      >
-        <Box sx={{ width: "100%", height: 300, minWidth: 300 }}>
+      <Paper sx={{ p: 2, borderRadius: 3, boxShadow: 2 }}>
+        <Box sx={{ width: "100%", height: 300 }}>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart
               data={[
@@ -277,15 +255,22 @@ const StatCard = ({ title, value, sub }) => (
     sx={{
       borderRadius: 3,
       boxShadow: 3,
-      p: 1,
+      p: 1.5,
       height: "100%",
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "center",
+      alignItems: "center",
       textAlign: "center",
       transition: "0.3s",
-      "&:hover": { boxShadow: 6, transform: "scale(1.02)" },
+      "&:hover": { boxShadow: 6, transform: "scale(1.03)" },
     }}
   >
-    <CardContent>
-      <Typography variant="h6" sx={{ fontSize: { xs: "1rem", md: "1.1rem" } }}>
+    <CardContent sx={{ p: 1, "&:last-child": { pb: 1 } }}>
+      <Typography
+        variant="h6"
+        sx={{ fontSize: { xs: "1rem", md: "1.1rem" }, fontWeight: 500 }}
+      >
         {title}
       </Typography>
       <Typography
@@ -295,6 +280,7 @@ const StatCard = ({ title, value, sub }) => (
           color: "#1976d2",
           mt: 1,
           fontSize: { xs: "1.2rem", md: "1.5rem" },
+          wordBreak: "break-word",
         }}
       >
         {value}
