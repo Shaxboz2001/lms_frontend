@@ -411,37 +411,87 @@ export default function TestPage() {
       )}
 
       {/* ✅ Avvalgi natijalar modal */}
-      <Dialog open={attemptsOpen} onClose={() => setAttemptsOpen(false)}>
-        <DialogTitle>📜 Avvalgi natijalar</DialogTitle>
+      <Dialog
+        open={attemptsOpen}
+        onClose={() => setAttemptsOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontWeight: "bold", fontSize: "1.2rem" }}>
+          📜 Avvalgi natijalar
+        </DialogTitle>
         <DialogContent dividers>
           {loadingAttempts ? (
             <Typography>Yuklanmoqda...</Typography>
           ) : attempts.length === 0 ? (
-            <Typography color="text.secondary">
+            <Typography
+              color="text.secondary"
+              sx={{ textAlign: "center", py: 3 }}
+            >
               Siz hali bu testni yechmagansiz
             </Typography>
           ) : (
-            <List>
-              {attempts.map((a, i) => (
-                <ListItem
-                  key={i}
-                  button
-                  onClick={() => {
-                    handleViewDetailed(
-                      tests.find((t) => t.id)?.id,
-                      parseInt(userId),
-                      a.submitted_at
-                    );
-                    setAttemptsOpen(false);
-                  }}
-                >
-                  <ListItemText
-                    primary={`Urinish ${i + 1} — ${a.score}/${a.total}`}
-                    secondary={`Vaqt: ${a.submitted_at}`}
-                  />
-                </ListItem>
-              ))}
-            </List>
+            <Box>
+              {attempts.map((a, i) => {
+                const percentage = Math.round((a.score / a.total) * 100);
+                return (
+                  <Card
+                    key={i}
+                    sx={{
+                      mb: 2,
+                      p: 2,
+                      borderRadius: 2,
+                      cursor: "pointer",
+                      transition: "0.3s",
+                      "&:hover": {
+                        boxShadow: 4,
+                        transform: "scale(1.02)",
+                        bgcolor: "#f5faff",
+                      },
+                    }}
+                    onClick={() => {
+                      handleViewDetailed(
+                        tests.find((t) => t.id)?.id,
+                        parseInt(userId),
+                        a.submitted_at
+                      );
+                      setAttemptsOpen(false);
+                    }}
+                  >
+                    <Typography variant="subtitle1" fontWeight="bold">
+                      🧮 Urinish {i + 1}
+                    </Typography>
+                    <Typography sx={{ mt: 0.5 }}>
+                      Ball: <b>{a.score}</b> / {a.total} ({percentage}%)
+                    </Typography>
+                    <LinearProgress
+                      variant="determinate"
+                      value={percentage}
+                      sx={{
+                        mt: 1,
+                        height: 8,
+                        borderRadius: 1,
+                        "& .MuiLinearProgress-bar": {
+                          bgcolor:
+                            percentage >= 80
+                              ? "success.main"
+                              : percentage >= 50
+                              ? "warning.main"
+                              : "error.main",
+                        },
+                      }}
+                    />
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ mt: 1 }}
+                    >
+                      📅 {a.submitted_at}
+                    </Typography>
+                  </Card>
+                );
+              })}
+            </Box>
           )}
         </DialogContent>
         <DialogActions>
