@@ -17,6 +17,9 @@ import {
   DialogActions,
   Grid,
   CircularProgress,
+  Divider,
+  Card,
+  CardContent,
 } from "@mui/material";
 import toast, { Toaster } from "react-hot-toast";
 import { api } from "../services/api";
@@ -40,11 +43,24 @@ export default function Payroll() {
   const [selectedPayroll, setSelectedPayroll] = useState(null);
   const [paidAmount, setPaidAmount] = useState("");
 
+  // 📊 Details modal
+  const [openDetails, setOpenDetails] = useState(false);
+  const [selectedDetails, setSelectedDetails] = useState(null);
+
   // 🕓 History modal
   const [openHistory, setOpenHistory] = useState(false);
   const [historyData, setHistoryData] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(month);
+
+  // 📈 Summary
+  const [summary, setSummary] = useState({
+    totalEarned: 0,
+    totalPaid: 0,
+    totalPending: 0,
+    totalTeachers: 0,
+    totalManagers: 0,
+  });
 
   // -----------------------------
   // Fetch payroll and settings
@@ -59,6 +75,29 @@ export default function Payroll() {
     try {
       const res = await api.get(`/payroll?month=${month}`);
       setRows(res.data);
+
+      // 💡 Calculate summary
+      let earned = 0,
+        paid = 0,
+        pending = 0,
+        teachers = 0,
+        managers = 0;
+
+      res.data.forEach((r) => {
+        earned += r.net || 0;
+        if (r.status === "paid") paid += r.net || 0;
+        if (r.status === "pending") pending += r.net || 0;
+        if (r.role === "teacher") teachers++;
+        if (r.role === "manager") managers++;
+      });
+
+      setSummary({
+        totalEarned: earned,
+        totalPaid: paid,
+        totalPending: pending,
+        totalTeachers: teachers,
+        totalManagers: managers,
+      });
     } catch {
       toast.error("Error fetching payroll data");
     } finally {
@@ -75,9 +114,6 @@ export default function Payroll() {
     }
   };
 
-  // -----------------------------
-  // Calculate Payroll
-  // -----------------------------
   const handleCalculate = async () => {
     setLoading(true);
     try {
@@ -91,9 +127,6 @@ export default function Payroll() {
     }
   };
 
-  // -----------------------------
-  // Pay Salary
-  // -----------------------------
   const openPayDialog = (row) => {
     setSelectedPayroll(row);
     setPaidAmount(row.net || "");
@@ -114,9 +147,6 @@ export default function Payroll() {
     }
   };
 
-  // -----------------------------
-  // Update Settings
-  // -----------------------------
   const handleSaveSettings = async () => {
     try {
       await api.put("/payroll/salary/settings", {
@@ -131,9 +161,6 @@ export default function Payroll() {
     }
   };
 
-  // -----------------------------
-  // Fetch Payroll History
-  // -----------------------------
   const handleShowHistory = async () => {
     setOpenHistory(true);
     setHistoryLoading(true);
@@ -147,12 +174,70 @@ export default function Payroll() {
     }
   };
 
+  // -----------------------------
+  // UI Render
+  // -----------------------------
   return (
     <Box sx={{ p: { xs: 2, md: 4 } }}>
       <Toaster position="top-right" />
       <Typography variant="h5" fontWeight={600} mb={2}>
         Payroll Management
       </Typography>
+
+      {/* SUMMARY SECTION */}
+      <Grid container spacing={2} mb={3}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ bgcolor: "#f3f9ff" }}>
+            <CardContent>
+              <Typography variant="subtitle2" color="primary">
+                💰 Total Earned
+              </Typography>
+              <Typography variant="h6">
+                {summary.totalEarned.toLocaleString()} UZS
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ bgcolor: "#e8fff3" }}>
+            <CardContent>
+              <Typography variant="subtitle2" color="green">
+                ✅ Total Paid
+              </Typography>
+              <Typography variant="h6">
+                {summary.totalPaid.toLocaleString()} UZS
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ bgcolor: "#fff6e6" }}>
+            <CardContent>
+              <Typography variant="subtitle2" color="orange">
+                ⏳ Pending
+              </Typography>
+              <Typography variant="h6">
+                {summary.totalPending.toLocaleString()} UZS
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ bgcolor: "#f5f5f5" }}>
+            <CardContent>
+              <Typography variant="subtitle2" color="text.secondary">
+                👩‍🏫 Teachers / 🧑‍💼 Managers
+              </Typography>
+              <Typography variant="h6">
+                {summary.totalTeachers} / {summary.totalManagers}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
 
       {/* SETTINGS & ACTIONS */}
       <Paper sx={{ p: 2, mb: 3 }}>
@@ -166,8 +251,7 @@ export default function Payroll() {
               onChange={(e) => setMonth(e.target.value)}
             />
           </Grid>
-
-          <Grid item xs={12} sm={6} md="auto">
+          <Grid item xs="auto">
             <Button
               variant="contained"
               onClick={handleCalculate}
@@ -176,20 +260,17 @@ export default function Payroll() {
               {loading ? <CircularProgress size={22} /> : "Calculate Payroll"}
             </Button>
           </Grid>
-
-          <Grid item xs={12} sm={6} md="auto">
+          <Grid item xs="auto">
             <Button variant="outlined" onClick={fetchRows}>
               Refresh
             </Button>
           </Grid>
-
-          <Grid item xs={12} sm={6} md="auto">
+          <Grid item xs="auto">
             <Button variant="outlined" onClick={() => setOpenSettings(true)}>
               Salary Settings ⚙️
             </Button>
           </Grid>
-
-          <Grid item xs={12} sm={6} md="auto">
+          <Grid item xs="auto">
             <Button
               variant="outlined"
               color="secondary"
@@ -227,19 +308,15 @@ export default function Payroll() {
               <TableCell>
                 <b>Paid At</b>
               </TableCell>
-              <TableCell>
-                <b>Details</b>
-              </TableCell>
               <TableCell align="center">
-                <b>Action</b>
+                <b>Actions</b>
               </TableCell>
             </TableRow>
           </TableHead>
-
           <TableBody>
             {rows.length === 0 && !loading && (
               <TableRow>
-                <TableCell colSpan={9} align="center">
+                <TableCell colSpan={8} align="center">
                   No payroll data available
                 </TableCell>
               </TableRow>
@@ -252,15 +329,12 @@ export default function Payroll() {
                 </TableCell>
                 <TableCell>{r.earned?.toLocaleString()}</TableCell>
                 <TableCell>{r.deductions?.toLocaleString()}</TableCell>
-                <TableCell>{r.net?.toLocaleString()}</TableCell>
+                <TableCell>
+                  <b>{r.net?.toLocaleString()}</b>
+                </TableCell>
                 <TableCell
                   sx={{
-                    color:
-                      r.status === "paid"
-                        ? "green"
-                        : r.status === "pending"
-                        ? "orange"
-                        : "inherit",
+                    color: r.status === "paid" ? "green" : "orange",
                     fontWeight: 600,
                   }}
                 >
@@ -269,31 +343,32 @@ export default function Payroll() {
                 <TableCell>
                   {r.paid_at ? new Date(r.paid_at).toLocaleString() : "-"}
                 </TableCell>
-                <TableCell>
-                  <pre
-                    style={{
-                      whiteSpace: "pre-wrap",
-                      maxWidth: "220px",
-                      fontSize: "12px",
-                    }}
-                  >
-                    {JSON.stringify(r.details, null, 1)}
-                  </pre>
-                </TableCell>
                 <TableCell align="center">
-                  {r.status === "pending" ? (
+                  <Stack direction="row" spacing={1}>
                     <Button
                       size="small"
-                      variant="contained"
-                      onClick={() => openPayDialog(r)}
+                      variant="outlined"
+                      onClick={() => {
+                        setSelectedDetails(r.details);
+                        setOpenDetails(true);
+                      }}
                     >
-                      Mark as Paid
+                      View
                     </Button>
-                  ) : (
-                    <Button size="small" disabled color="success">
-                      Paid
-                    </Button>
-                  )}
+                    {r.status === "pending" ? (
+                      <Button
+                        size="small"
+                        variant="contained"
+                        onClick={() => openPayDialog(r)}
+                      >
+                        Pay
+                      </Button>
+                    ) : (
+                      <Button size="small" color="success" disabled>
+                        Paid
+                      </Button>
+                    )}
+                  </Stack>
                 </TableCell>
               </TableRow>
             ))}
@@ -301,168 +376,43 @@ export default function Payroll() {
         </Table>
       </Paper>
 
-      {/* SETTINGS MODAL */}
+      {/* DETAILS MODAL */}
       <Dialog
-        open={openSettings}
-        onClose={() => setOpenSettings(false)}
+        open={openDetails}
+        onClose={() => setOpenDetails(false)}
         fullWidth
       >
-        <DialogTitle>Salary Settings</DialogTitle>
+        <DialogTitle>Payroll Details</DialogTitle>
         <DialogContent>
-          <Stack spacing={2} mt={1}>
-            <TextField
-              label="Teacher Percent (%)"
-              type="number"
-              value={settings.teacher_percent}
-              onChange={(e) =>
-                setSettings({ ...settings, teacher_percent: e.target.value })
-              }
-              fullWidth
-            />
-            <TextField
-              label="Manager Active Percent (%)"
-              type="number"
-              value={settings.manager_active_percent}
-              onChange={(e) =>
-                setSettings({
-                  ...settings,
-                  manager_active_percent: e.target.value,
-                })
-              }
-              fullWidth
-            />
-            <TextField
-              label="Manager New Student Percent (%)"
-              type="number"
-              value={settings.manager_new_percent}
-              onChange={(e) =>
-                setSettings({
-                  ...settings,
-                  manager_new_percent: e.target.value,
-                })
-              }
-              fullWidth
-            />
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenSettings(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleSaveSettings}>
-            Save
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* PAY MODAL */}
-      <Dialog
-        open={openPayModal}
-        onClose={() => setOpenPayModal(false)}
-        fullWidth
-      >
-        <DialogTitle>Mark as Paid</DialogTitle>
-        <DialogContent>
-          <Typography mb={1}>
-            <b>{selectedPayroll?.user_name}</b> ({selectedPayroll?.role})
-          </Typography>
-          <TextField
-            label="Paid Amount"
-            type="number"
-            fullWidth
-            value={paidAmount}
-            onChange={(e) => setPaidAmount(e.target.value)}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenPayModal(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleConfirmPay}>
-            Confirm
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* HISTORY MODAL */}
-      <Dialog
-        open={openHistory}
-        onClose={() => setOpenHistory(false)}
-        fullWidth
-        maxWidth="md"
-      >
-        <DialogTitle>Payroll History</DialogTitle>
-        <DialogContent>
-          <TextField
-            label="Select Month (YYYY-MM)"
-            fullWidth
-            size="small"
-            value={selectedMonth}
-            onChange={(e) => setSelectedMonth(e.target.value)}
-            sx={{ mb: 2 }}
-          />
-
-          <Button
-            variant="contained"
-            size="small"
-            sx={{ mb: 2 }}
-            onClick={handleShowHistory}
-          >
-            View
-          </Button>
-
-          {historyLoading ? (
-            <CircularProgress />
+          {selectedDetails ? (
+            <Box sx={{ mt: 1 }}>
+              {Object.entries(selectedDetails).map(([key, val]) => (
+                <Box
+                  key={key}
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    borderBottom: "1px solid #eee",
+                    py: 0.8,
+                  }}
+                >
+                  <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                    {key.replace(/_/g, " ")}
+                  </Typography>
+                  <Typography variant="body2">
+                    {typeof val === "number"
+                      ? val.toLocaleString()
+                      : String(val)}
+                  </Typography>
+                </Box>
+              ))}
+            </Box>
           ) : (
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>
-                    <b>Name</b>
-                  </TableCell>
-                  <TableCell>
-                    <b>Role</b>
-                  </TableCell>
-                  <TableCell>
-                    <b>Net</b>
-                  </TableCell>
-                  <TableCell>
-                    <b>Status</b>
-                  </TableCell>
-                  <TableCell>
-                    <b>Paid At</b>
-                  </TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {historyData.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} align="center">
-                      No records for this month
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  historyData.map((h) => (
-                    <TableRow key={h.id}>
-                      <TableCell>{h.user_name}</TableCell>
-                      <TableCell>{h.role}</TableCell>
-                      <TableCell>{h.net?.toLocaleString()}</TableCell>
-                      <TableCell
-                        sx={{
-                          color: h.status === "paid" ? "green" : "orange",
-                          fontWeight: 600,
-                        }}
-                      >
-                        {h.status}
-                      </TableCell>
-                      <TableCell>
-                        {h.paid_at ? new Date(h.paid_at).toLocaleString() : "-"}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+            <Typography>No details available</Typography>
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenHistory(false)}>Close</Button>
+          <Button onClick={() => setOpenDetails(false)}>Close</Button>
         </DialogActions>
       </Dialog>
     </Box>
