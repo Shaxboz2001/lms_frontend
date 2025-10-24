@@ -415,6 +415,59 @@ export default function Payroll() {
           <Button onClick={() => setOpenDetails(false)}>Close</Button>
         </DialogActions>
       </Dialog>
+      {/* PAY MODAL */}
+      <Dialog
+        open={openPayModal}
+        onClose={() => setOpenPayModal(false)}
+        fullWidth
+        maxWidth="sm"
+        PaperProps={{
+          sx: { borderRadius: 3, p: 1 },
+        }}
+      >
+        <DialogTitle sx={{ fontWeight: 600 }}>💵 Mark as Paid</DialogTitle>
+        <DialogContent>
+          {selectedPayroll ? (
+            <Box sx={{ mt: 1 }}>
+              <Typography variant="subtitle1" fontWeight={600}>
+                {selectedPayroll.user_name}
+              </Typography>
+              <Typography
+                variant="body2"
+                sx={{ color: "text.secondary", mb: 2 }}
+              >
+                Role: {selectedPayroll.role}
+              </Typography>
+
+              <TextField
+                label="Paid Amount (UZS)"
+                type="number"
+                fullWidth
+                value={paidAmount}
+                onChange={(e) => setPaidAmount(e.target.value)}
+                sx={{ mb: 2 }}
+              />
+
+              <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                <b>Net:</b> {selectedPayroll.net?.toLocaleString()} UZS
+              </Typography>
+            </Box>
+          ) : (
+            <Typography>No payroll selected</Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenPayModal(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handleConfirmPay}
+            disabled={!paidAmount}
+          >
+            Confirm
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
