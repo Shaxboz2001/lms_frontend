@@ -228,7 +228,7 @@ export default function Payroll() {
                           />
                           <IconButton
                             color="success"
-                            onClick={() => handleUpdateTeacherPercent(r.id)}
+                            onClick={() => handleUpdateTeacherPercent(r.userid)}
                           >
                             <Save />
                           </IconButton>
