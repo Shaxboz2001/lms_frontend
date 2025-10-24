@@ -17,7 +17,6 @@ import {
   DialogActions,
   Grid,
   CircularProgress,
-  Divider,
   Card,
   CardContent,
 } from "@mui/material";
@@ -181,7 +180,7 @@ export default function Payroll() {
     <Box sx={{ p: { xs: 2, md: 4 } }}>
       <Toaster position="top-right" />
       <Typography variant="h5" fontWeight={600} mb={2}>
-        Payroll Management
+        💼 Payroll Management
       </Typography>
 
       {/* SUMMARY SECTION */}
@@ -314,64 +313,65 @@ export default function Payroll() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {rows.length === 0 && !loading && (
+            {rows.length === 0 && !loading ? (
               <TableRow>
                 <TableCell colSpan={8} align="center">
                   No payroll data available
                 </TableCell>
               </TableRow>
-            )}
-            {rows.map((r) => (
-              <TableRow key={r.id} hover>
-                <TableCell>{r.user_name || r.user_id}</TableCell>
-                <TableCell sx={{ textTransform: "capitalize" }}>
-                  {r.role}
-                </TableCell>
-                <TableCell>{r.earned?.toLocaleString()}</TableCell>
-                <TableCell>{r.deductions?.toLocaleString()}</TableCell>
-                <TableCell>
-                  <b>{r.net?.toLocaleString()}</b>
-                </TableCell>
-                <TableCell
-                  sx={{
-                    color: r.status === "paid" ? "green" : "orange",
-                    fontWeight: 600,
-                  }}
-                >
-                  {r.status}
-                </TableCell>
-                <TableCell>
-                  {r.paid_at ? new Date(r.paid_at).toLocaleString() : "-"}
-                </TableCell>
-                <TableCell align="center">
-                  <Stack direction="row" spacing={1}>
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      onClick={() => {
-                        setSelectedDetails(r.details);
-                        setOpenDetails(true);
-                      }}
-                    >
-                      View
-                    </Button>
-                    {r.status === "pending" ? (
+            ) : (
+              rows.map((r) => (
+                <TableRow key={r.id} hover>
+                  <TableCell>{r.user_name}</TableCell>
+                  <TableCell sx={{ textTransform: "capitalize" }}>
+                    {r.role}
+                  </TableCell>
+                  <TableCell>{r.earned?.toLocaleString()}</TableCell>
+                  <TableCell>{r.deductions?.toLocaleString()}</TableCell>
+                  <TableCell>
+                    <b>{r.net?.toLocaleString()}</b>
+                  </TableCell>
+                  <TableCell
+                    sx={{
+                      color: r.status === "paid" ? "green" : "orange",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {r.status}
+                  </TableCell>
+                  <TableCell>
+                    {r.paid_at ? new Date(r.paid_at).toLocaleString() : "-"}
+                  </TableCell>
+                  <TableCell align="center">
+                    <Stack direction="row" spacing={1}>
                       <Button
                         size="small"
-                        variant="contained"
-                        onClick={() => openPayDialog(r)}
+                        variant="outlined"
+                        onClick={() => {
+                          setSelectedDetails(r.details);
+                          setOpenDetails(true);
+                        }}
                       >
-                        Pay
+                        View
                       </Button>
-                    ) : (
-                      <Button size="small" color="success" disabled>
-                        Paid
-                      </Button>
-                    )}
-                  </Stack>
-                </TableCell>
-              </TableRow>
-            ))}
+                      {r.status === "pending" ? (
+                        <Button
+                          size="small"
+                          variant="contained"
+                          onClick={() => openPayDialog(r)}
+                        >
+                          Pay
+                        </Button>
+                      ) : (
+                        <Button size="small" color="success" disabled>
+                          Paid
+                        </Button>
+                      )}
+                    </Stack>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </Paper>
@@ -415,15 +415,14 @@ export default function Payroll() {
           <Button onClick={() => setOpenDetails(false)}>Close</Button>
         </DialogActions>
       </Dialog>
+
       {/* PAY MODAL */}
       <Dialog
         open={openPayModal}
         onClose={() => setOpenPayModal(false)}
         fullWidth
         maxWidth="sm"
-        PaperProps={{
-          sx: { borderRadius: 3, p: 1 },
-        }}
+        PaperProps={{ sx: { borderRadius: 3, p: 1 } }}
       >
         <DialogTitle sx={{ fontWeight: 600 }}>💵 Mark as Paid</DialogTitle>
         <DialogContent>
