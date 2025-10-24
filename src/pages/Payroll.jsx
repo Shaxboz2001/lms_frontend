@@ -19,7 +19,9 @@ import {
   CircularProgress,
   Card,
   CardContent,
+  IconButton,
 } from "@mui/material";
+import { Edit, Save } from "@mui/icons-material";
 import toast, { Toaster } from "react-hot-toast";
 import { api } from "../services/api";
 
@@ -46,20 +48,9 @@ export default function Payroll() {
   const [openDetails, setOpenDetails] = useState(false);
   const [selectedDetails, setSelectedDetails] = useState(null);
 
-  // 🕓 History modal
-  const [openHistory, setOpenHistory] = useState(false);
-  const [historyData, setHistoryData] = useState([]);
-  const [historyLoading, setHistoryLoading] = useState(false);
-  const [selectedMonth, setSelectedMonth] = useState(month);
-
-  // 📈 Summary
-  const [summary, setSummary] = useState({
-    totalEarned: 0,
-    totalPaid: 0,
-    totalPending: 0,
-    totalTeachers: 0,
-    totalManagers: 0,
-  });
+  // ✏️ Inline edit state
+  const [editingTeacherId, setEditingTeacherId] = useState(null);
+  const [editingPercent, setEditingPercent] = useState("");
 
   // -----------------------------
   // Fetch payroll and settings
@@ -74,29 +65,6 @@ export default function Payroll() {
     try {
       const res = await api.get(`/payroll?month=${month}`);
       setRows(res.data);
-
-      // 💡 Calculate summary
-      let earned = 0,
-        paid = 0,
-        pending = 0,
-        teachers = 0,
-        managers = 0;
-
-      res.data.forEach((r) => {
-        earned += r.net || 0;
-        if (r.status === "paid") paid += r.net || 0;
-        if (r.status === "pending") pending += r.net || 0;
-        if (r.role === "teacher") teachers++;
-        if (r.role === "manager") managers++;
-      });
-
-      setSummary({
-        totalEarned: earned,
-        totalPaid: paid,
-        totalPending: pending,
-        totalTeachers: teachers,
-        totalManagers: managers,
-      });
     } catch {
       toast.error("Error fetching payroll data");
     } finally {
@@ -146,30 +114,20 @@ export default function Payroll() {
     }
   };
 
-  const handleSaveSettings = async () => {
-    try {
-      await api.put("/payroll/salary/settings", {
-        teacher_percent: Number(settings.teacher_percent),
-        manager_active_percent: Number(settings.manager_active_percent),
-        manager_new_percent: Number(settings.manager_new_percent),
-      });
-      toast.success("Settings updated ✅");
-      setOpenSettings(false);
-    } catch (err) {
-      toast.error(err.response?.data?.detail || "Failed to save settings");
+  const handleUpdateTeacherPercent = async (teacherId) => {
+    if (!editingPercent || isNaN(editingPercent)) {
+      toast.error("Enter valid percent!");
+      return;
     }
-  };
-
-  const handleShowHistory = async () => {
-    setOpenHistory(true);
-    setHistoryLoading(true);
     try {
-      const res = await api.get(`/payroll?month=${selectedMonth}`);
-      setHistoryData(res.data);
-    } catch {
-      toast.error("Error fetching payroll history");
-    } finally {
-      setHistoryLoading(false);
+      await api.put(`/payroll/teacher-percent/${teacherId}`, {
+        teacher_percent: Number(editingPercent),
+      });
+      toast.success("Teacher percent updated ✅");
+      setEditingTeacherId(null);
+      fetchRows();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Error updating percent");
     }
   };
 
@@ -183,62 +141,6 @@ export default function Payroll() {
         💼 Payroll Management
       </Typography>
 
-      {/* SUMMARY SECTION */}
-      <Grid container spacing={2} mb={3}>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ bgcolor: "#f3f9ff" }}>
-            <CardContent>
-              <Typography variant="subtitle2" color="primary">
-                💰 Total Earned
-              </Typography>
-              <Typography variant="h6">
-                {summary.totalEarned.toLocaleString()} UZS
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ bgcolor: "#e8fff3" }}>
-            <CardContent>
-              <Typography variant="subtitle2" color="green">
-                ✅ Total Paid
-              </Typography>
-              <Typography variant="h6">
-                {summary.totalPaid.toLocaleString()} UZS
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ bgcolor: "#fff6e6" }}>
-            <CardContent>
-              <Typography variant="subtitle2" color="orange">
-                ⏳ Pending
-              </Typography>
-              <Typography variant="h6">
-                {summary.totalPending.toLocaleString()} UZS
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ bgcolor: "#f5f5f5" }}>
-            <CardContent>
-              <Typography variant="subtitle2" color="text.secondary">
-                👩‍🏫 Teachers / 🧑‍💼 Managers
-              </Typography>
-              <Typography variant="h6">
-                {summary.totalTeachers} / {summary.totalManagers}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
-
-      {/* SETTINGS & ACTIONS */}
       <Paper sx={{ p: 2, mb: 3 }}>
         <Grid container spacing={2} alignItems="center">
           <Grid item xs={12} sm={6} md={4}>
@@ -264,20 +166,6 @@ export default function Payroll() {
               Refresh
             </Button>
           </Grid>
-          <Grid item xs="auto">
-            <Button variant="outlined" onClick={() => setOpenSettings(true)}>
-              Salary Settings ⚙️
-            </Button>
-          </Grid>
-          <Grid item xs="auto">
-            <Button
-              variant="outlined"
-              color="secondary"
-              onClick={handleShowHistory}
-            >
-              Show History 📅
-            </Button>
-          </Grid>
         </Grid>
       </Paper>
 
@@ -296,7 +184,7 @@ export default function Payroll() {
                 <b>Earned</b>
               </TableCell>
               <TableCell>
-                <b>Deductions</b>
+                <b>Percent</b>
               </TableCell>
               <TableCell>
                 <b>Net</b>
@@ -304,14 +192,12 @@ export default function Payroll() {
               <TableCell>
                 <b>Status</b>
               </TableCell>
-              <TableCell>
-                <b>Paid At</b>
-              </TableCell>
               <TableCell align="center">
                 <b>Actions</b>
               </TableCell>
             </TableRow>
           </TableHead>
+
           <TableBody>
             {rows.length === 0 && !loading ? (
               <TableRow>
@@ -327,7 +213,51 @@ export default function Payroll() {
                     {r.role}
                   </TableCell>
                   <TableCell>{r.earned?.toLocaleString()}</TableCell>
-                  <TableCell>{r.deductions?.toLocaleString()}</TableCell>
+
+                  {/* ✅ Inline Percent Edit */}
+                  <TableCell>
+                    {r.role === "teacher" ? (
+                      editingTeacherId === r.id ? (
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <TextField
+                            size="small"
+                            type="number"
+                            value={editingPercent}
+                            onChange={(e) => setEditingPercent(e.target.value)}
+                            sx={{ width: 80 }}
+                          />
+                          <IconButton
+                            color="success"
+                            onClick={() =>
+                              handleUpdateTeacherPercent(r.user_id)
+                            }
+                          >
+                            <Save />
+                          </IconButton>
+                        </Stack>
+                      ) : (
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <Typography>
+                            {r.details?.teacher_percent_used || "-"}%
+                          </Typography>
+                          <IconButton
+                            size="small"
+                            onClick={() => {
+                              setEditingTeacherId(r.id);
+                              setEditingPercent(
+                                r.details?.teacher_percent_used || ""
+                              );
+                            }}
+                          >
+                            <Edit fontSize="small" />
+                          </IconButton>
+                        </Stack>
+                      )
+                    ) : (
+                      "-"
+                    )}
+                  </TableCell>
+
                   <TableCell>
                     <b>{r.net?.toLocaleString()}</b>
                   </TableCell>
@@ -338,9 +268,6 @@ export default function Payroll() {
                     }}
                   >
                     {r.status}
-                  </TableCell>
-                  <TableCell>
-                    {r.paid_at ? new Date(r.paid_at).toLocaleString() : "-"}
                   </TableCell>
                   <TableCell align="center">
                     <Stack direction="row" spacing={1}>
@@ -413,58 +340,6 @@ export default function Payroll() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenDetails(false)}>Close</Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* PAY MODAL */}
-      <Dialog
-        open={openPayModal}
-        onClose={() => setOpenPayModal(false)}
-        fullWidth
-        maxWidth="sm"
-        PaperProps={{ sx: { borderRadius: 3, p: 1 } }}
-      >
-        <DialogTitle sx={{ fontWeight: 600 }}>💵 Mark as Paid</DialogTitle>
-        <DialogContent>
-          {selectedPayroll ? (
-            <Box sx={{ mt: 1 }}>
-              <Typography variant="subtitle1" fontWeight={600}>
-                {selectedPayroll.user_name}
-              </Typography>
-              <Typography
-                variant="body2"
-                sx={{ color: "text.secondary", mb: 2 }}
-              >
-                Role: {selectedPayroll.role}
-              </Typography>
-
-              <TextField
-                label="Paid Amount (UZS)"
-                type="number"
-                fullWidth
-                value={paidAmount}
-                onChange={(e) => setPaidAmount(e.target.value)}
-                sx={{ mb: 2 }}
-              />
-
-              <Typography variant="body2" sx={{ color: "text.secondary" }}>
-                <b>Net:</b> {selectedPayroll.net?.toLocaleString()} UZS
-              </Typography>
-            </Box>
-          ) : (
-            <Typography>No payroll selected</Typography>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenPayModal(false)}>Cancel</Button>
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={handleConfirmPay}
-            disabled={!paidAmount}
-          >
-            Confirm
-          </Button>
         </DialogActions>
       </Dialog>
     </Box>
