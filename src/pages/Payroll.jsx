@@ -35,6 +35,17 @@ export default function Payroll() {
   const [openSettings, setOpenSettings] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // 💰 Pay modal
+  const [openPayModal, setOpenPayModal] = useState(false);
+  const [selectedPayroll, setSelectedPayroll] = useState(null);
+  const [paidAmount, setPaidAmount] = useState("");
+
+  // 🕓 History modal
+  const [openHistory, setOpenHistory] = useState(false);
+  const [historyData, setHistoryData] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState(month);
+
   // -----------------------------
   // Fetch payroll and settings
   // -----------------------------
@@ -83,10 +94,20 @@ export default function Payroll() {
   // -----------------------------
   // Pay Salary
   // -----------------------------
-  const handlePay = async (id) => {
+  const openPayDialog = (row) => {
+    setSelectedPayroll(row);
+    setPaidAmount(row.net || "");
+    setOpenPayModal(true);
+  };
+
+  const handleConfirmPay = async () => {
+    if (!paidAmount) return toast.error("Enter paid amount!");
     try {
-      await api.post(`/payroll/${id}/pay`);
+      await api.post(`/payroll/${selectedPayroll.id}/pay`, {
+        paid_amount: Number(paidAmount),
+      });
       toast.success("Payment marked as paid 💰");
+      setOpenPayModal(false);
       fetchRows();
     } catch (err) {
       toast.error(err.response?.data?.detail || "Error processing payment");
@@ -107,6 +128,22 @@ export default function Payroll() {
       setOpenSettings(false);
     } catch (err) {
       toast.error(err.response?.data?.detail || "Failed to save settings");
+    }
+  };
+
+  // -----------------------------
+  // Fetch Payroll History
+  // -----------------------------
+  const handleShowHistory = async () => {
+    setOpenHistory(true);
+    setHistoryLoading(true);
+    try {
+      const res = await api.get(`/payroll?month=${selectedMonth}`);
+      setHistoryData(res.data);
+    } catch {
+      toast.error("Error fetching payroll history");
+    } finally {
+      setHistoryLoading(false);
     }
   };
 
@@ -151,6 +188,16 @@ export default function Payroll() {
               Salary Settings ⚙️
             </Button>
           </Grid>
+
+          <Grid item xs={12} sm={6} md="auto">
+            <Button
+              variant="outlined"
+              color="secondary"
+              onClick={handleShowHistory}
+            >
+              Show History 📅
+            </Button>
+          </Grid>
         </Grid>
       </Paper>
 
@@ -178,6 +225,9 @@ export default function Payroll() {
                 <b>Status</b>
               </TableCell>
               <TableCell>
+                <b>Paid At</b>
+              </TableCell>
+              <TableCell>
                 <b>Details</b>
               </TableCell>
               <TableCell align="center">
@@ -189,24 +239,17 @@ export default function Payroll() {
           <TableBody>
             {rows.length === 0 && !loading && (
               <TableRow>
-                <TableCell colSpan={8} align="center">
+                <TableCell colSpan={9} align="center">
                   No payroll data available
                 </TableCell>
               </TableRow>
             )}
             {rows.map((r) => (
-              <TableRow
-                key={r.id}
-                hover
-                sx={{
-                  "&:hover": {
-                    backgroundColor: "rgba(0,0,0,0.04)",
-                    cursor: "pointer",
-                  },
-                }}
-              >
+              <TableRow key={r.id} hover>
                 <TableCell>{r.user_name || r.user_id}</TableCell>
-                <TableCell>{r.role}</TableCell>
+                <TableCell sx={{ textTransform: "capitalize" }}>
+                  {r.role}
+                </TableCell>
                 <TableCell>{r.earned?.toLocaleString()}</TableCell>
                 <TableCell>{r.deductions?.toLocaleString()}</TableCell>
                 <TableCell>{r.net?.toLocaleString()}</TableCell>
@@ -224,10 +267,13 @@ export default function Payroll() {
                   {r.status}
                 </TableCell>
                 <TableCell>
+                  {r.paid_at ? new Date(r.paid_at).toLocaleString() : "-"}
+                </TableCell>
+                <TableCell>
                   <pre
                     style={{
                       whiteSpace: "pre-wrap",
-                      maxWidth: "250px",
+                      maxWidth: "220px",
                       fontSize: "12px",
                     }}
                   >
@@ -239,7 +285,7 @@ export default function Payroll() {
                     <Button
                       size="small"
                       variant="contained"
-                      onClick={() => handlePay(r.id)}
+                      onClick={() => openPayDialog(r)}
                     >
                       Mark as Paid
                     </Button>
@@ -304,6 +350,119 @@ export default function Payroll() {
           <Button variant="contained" onClick={handleSaveSettings}>
             Save
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* PAY MODAL */}
+      <Dialog
+        open={openPayModal}
+        onClose={() => setOpenPayModal(false)}
+        fullWidth
+      >
+        <DialogTitle>Mark as Paid</DialogTitle>
+        <DialogContent>
+          <Typography mb={1}>
+            <b>{selectedPayroll?.user_name}</b> ({selectedPayroll?.role})
+          </Typography>
+          <TextField
+            label="Paid Amount"
+            type="number"
+            fullWidth
+            value={paidAmount}
+            onChange={(e) => setPaidAmount(e.target.value)}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenPayModal(false)}>Cancel</Button>
+          <Button variant="contained" onClick={handleConfirmPay}>
+            Confirm
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* HISTORY MODAL */}
+      <Dialog
+        open={openHistory}
+        onClose={() => setOpenHistory(false)}
+        fullWidth
+        maxWidth="md"
+      >
+        <DialogTitle>Payroll History</DialogTitle>
+        <DialogContent>
+          <TextField
+            label="Select Month (YYYY-MM)"
+            fullWidth
+            size="small"
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(e.target.value)}
+            sx={{ mb: 2 }}
+          />
+
+          <Button
+            variant="contained"
+            size="small"
+            sx={{ mb: 2 }}
+            onClick={handleShowHistory}
+          >
+            View
+          </Button>
+
+          {historyLoading ? (
+            <CircularProgress />
+          ) : (
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>
+                    <b>Name</b>
+                  </TableCell>
+                  <TableCell>
+                    <b>Role</b>
+                  </TableCell>
+                  <TableCell>
+                    <b>Net</b>
+                  </TableCell>
+                  <TableCell>
+                    <b>Status</b>
+                  </TableCell>
+                  <TableCell>
+                    <b>Paid At</b>
+                  </TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {historyData.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} align="center">
+                      No records for this month
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  historyData.map((h) => (
+                    <TableRow key={h.id}>
+                      <TableCell>{h.user_name}</TableCell>
+                      <TableCell>{h.role}</TableCell>
+                      <TableCell>{h.net?.toLocaleString()}</TableCell>
+                      <TableCell
+                        sx={{
+                          color: h.status === "paid" ? "green" : "orange",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {h.status}
+                      </TableCell>
+                      <TableCell>
+                        {h.paid_at ? new Date(h.paid_at).toLocaleString() : "-"}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenHistory(false)}>Close</Button>
         </DialogActions>
       </Dialog>
     </Box>
