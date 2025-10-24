@@ -17,9 +17,11 @@ import {
   DialogActions,
   Grid,
   CircularProgress,
-  Card,
-  CardContent,
+  IconButton,
+  MenuItem,
+  InputAdornment,
 } from "@mui/material";
+import { Edit, Search } from "@mui/icons-material";
 import toast, { Toaster } from "react-hot-toast";
 import { api } from "../services/api";
 
@@ -32,19 +34,21 @@ export default function Payroll() {
   const [settings, setSettings] = useState({});
   const [loading, setLoading] = useState(false);
 
-  // Modallar
+  // Search & Filter
+  const [search, setSearch] = useState("");
+  const [filterRole, setFilterRole] = useState("all");
+
+  // Modals
   const [openSettings, setOpenSettings] = useState(false);
   const [openDetails, setOpenDetails] = useState(false);
   const [openPay, setOpenPay] = useState(false);
-  const [openEditPercent, setOpenEditPercent] = useState(false);
 
-  // Tanlangan qiymatlar
+  // Tanlangan
   const [selectedRow, setSelectedRow] = useState(null);
   const [selectedDetails, setSelectedDetails] = useState(null);
   const [paidAmount, setPaidAmount] = useState("");
-  const [teacherPercent, setTeacherPercent] = useState("");
+  const [editPercent, setEditPercent] = useState(null);
 
-  // ----------------- Fetch Data -----------------
   useEffect(() => {
     fetchRows();
     fetchSettings();
@@ -71,7 +75,6 @@ export default function Payroll() {
     }
   };
 
-  // ----------------- Actions -----------------
   const handleCalculate = async () => {
     setLoading(true);
     try {
@@ -109,28 +112,36 @@ export default function Payroll() {
       toast.success("Settings updated ✅");
       setOpenSettings(false);
       fetchSettings();
-    } catch (err) {
+    } catch {
       toast.error("Error saving settings");
     }
   };
 
-  const handleUpdateTeacherPercent = async () => {
-    if (!teacherPercent || !selectedRow) return;
+  const handleUpdatePercent = async (teacherId, percent) => {
     try {
-      await api.put(`/payroll/teacher-percent/${selectedRow.user_id}`, {
-        teacher_percent: Number(teacherPercent),
+      await api.put(`/payroll/teacher-percent/${teacherId}`, {
+        teacher_percent: Number(percent),
       });
       toast.success("Teacher % updated ✅");
-      setOpenEditPercent(false);
+      setEditPercent(null);
       fetchRows();
     } catch (err) {
       toast.error(err.response?.data?.detail || "Update error");
     }
   };
 
-  // ----------------- UI -----------------
+  // Filter & Search
+  const filteredRows = rows.filter((r) => {
+    const matchesSearch = r.user_name
+      ?.toLowerCase()
+      .includes(search.toLowerCase());
+    const matchesRole =
+      filterRole === "all" ? true : r.role === filterRole.toLowerCase();
+    return matchesSearch && matchesRole;
+  });
+
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: { xs: 2, sm: 3 } }}>
       <Toaster position="top-right" />
       <Typography variant="h5" mb={2} fontWeight={600}>
         Payroll Management
@@ -138,7 +149,7 @@ export default function Payroll() {
 
       {/* Filters */}
       <Grid container spacing={2} mb={2}>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={3}>
           <TextField
             label="Month (YYYY-MM)"
             size="small"
@@ -147,6 +158,39 @@ export default function Payroll() {
             onChange={(e) => setMonth(e.target.value)}
           />
         </Grid>
+
+        <Grid item xs={12} sm={3}>
+          <TextField
+            label="Search by Name"
+            size="small"
+            fullWidth
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search fontSize="small" />
+                </InputAdornment>
+              ),
+            }}
+          />
+        </Grid>
+
+        <Grid item xs={12} sm={3}>
+          <TextField
+            label="Filter by Role"
+            size="small"
+            select
+            fullWidth
+            value={filterRole}
+            onChange={(e) => setFilterRole(e.target.value)}
+          >
+            <MenuItem value="all">All</MenuItem>
+            <MenuItem value="teacher">Teacher</MenuItem>
+            <MenuItem value="manager">Manager</MenuItem>
+          </TextField>
+        </Grid>
+
         <Grid item xs="auto">
           <Button
             variant="contained"
@@ -180,6 +224,9 @@ export default function Payroll() {
                 <b>Role</b>
               </TableCell>
               <TableCell>
+                <b>Teacher %</b>
+              </TableCell>
+              <TableCell>
                 <b>Earned</b>
               </TableCell>
               <TableCell>
@@ -197,19 +244,72 @@ export default function Payroll() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {rows.length === 0 && (
+            {filteredRows.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} align="center">
-                  No payroll found
+                <TableCell colSpan={8} align="center">
+                  No data found
                 </TableCell>
               </TableRow>
             )}
-            {rows.map((r) => (
+            {filteredRows.map((r) => (
               <TableRow key={r.id} hover>
                 <TableCell>{r.user_name}</TableCell>
                 <TableCell sx={{ textTransform: "capitalize" }}>
                   {r.role}
                 </TableCell>
+
+                {/* Teacher Percent Column */}
+                <TableCell>
+                  {r.role === "teacher" ? (
+                    editPercent === r.user_id ? (
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <TextField
+                          size="small"
+                          type="number"
+                          value={r.temp_percent ?? ""}
+                          onChange={(e) => {
+                            setRows((prev) =>
+                              prev.map((x) =>
+                                x.user_id === r.user_id
+                                  ? { ...x, temp_percent: e.target.value }
+                                  : x
+                              )
+                            );
+                          }}
+                          sx={{ width: 70 }}
+                        />
+                        <Button
+                          size="small"
+                          variant="contained"
+                          onClick={() =>
+                            handleUpdatePercent(
+                              r.user_id,
+                              r.temp_percent || r.details?.teacher_percent_used
+                            )
+                          }
+                        >
+                          Save
+                        </Button>
+                      </Stack>
+                    ) : (
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Typography>
+                          {r.details?.teacher_percent_used || "-"}
+                        </Typography>
+                        <IconButton
+                          size="small"
+                          color="primary"
+                          onClick={() => setEditPercent(r.user_id)}
+                        >
+                          <Edit fontSize="small" />
+                        </IconButton>
+                      </Stack>
+                    )
+                  ) : (
+                    "-"
+                  )}
+                </TableCell>
+
                 <TableCell>{r.earned?.toLocaleString()}</TableCell>
                 <TableCell>
                   <b>{r.net?.toLocaleString()}</b>
@@ -234,22 +334,6 @@ export default function Payroll() {
                     >
                       Details
                     </Button>
-
-                    {r.role === "teacher" && (
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        color="info"
-                        onClick={() => {
-                          setSelectedRow(r);
-                          setTeacherPercent("");
-                          setOpenEditPercent(true);
-                        }}
-                      >
-                        Edit %
-                      </Button>
-                    )}
-
                     {r.status === "pending" ? (
                       <Button
                         size="small"
@@ -274,8 +358,6 @@ export default function Payroll() {
           </TableBody>
         </Table>
       </Paper>
-
-      {/* ---------------- MODALS ---------------- */}
 
       {/* Details Modal */}
       <Dialog
@@ -318,16 +400,13 @@ export default function Payroll() {
           <Typography variant="subtitle1" fontWeight={600}>
             {selectedRow?.user_name}
           </Typography>
-          <Typography color="text.secondary" mb={1}>
-            Role: {selectedRow?.role}
-          </Typography>
-
           <TextField
             label="Paid Amount"
             fullWidth
             type="number"
             value={paidAmount}
             onChange={(e) => setPaidAmount(e.target.value)}
+            sx={{ mt: 2 }}
           />
         </DialogContent>
         <DialogActions>
@@ -338,7 +417,7 @@ export default function Payroll() {
         </DialogActions>
       </Dialog>
 
-      {/* Salary Settings Modal */}
+      {/* Salary Settings */}
       <Dialog
         open={openSettings}
         onClose={() => setOpenSettings(false)}
@@ -379,34 +458,6 @@ export default function Payroll() {
         <DialogActions>
           <Button onClick={() => setOpenSettings(false)}>Cancel</Button>
           <Button variant="contained" onClick={handleSaveSettings}>
-            Save
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Edit Teacher Percent */}
-      <Dialog
-        open={openEditPercent}
-        onClose={() => setOpenEditPercent(false)}
-        fullWidth
-      >
-        <DialogTitle>Update Teacher Percent</DialogTitle>
-        <DialogContent>
-          <Typography>
-            {selectedRow?.user_name} ({selectedRow?.role})
-          </Typography>
-          <TextField
-            label="Teacher Percent"
-            fullWidth
-            type="number"
-            value={teacherPercent}
-            onChange={(e) => setTeacherPercent(e.target.value)}
-            sx={{ mt: 2 }}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenEditPercent(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleUpdateTeacherPercent}>
             Save
           </Button>
         </DialogActions>
