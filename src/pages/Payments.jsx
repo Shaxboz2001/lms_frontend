@@ -23,7 +23,6 @@ import {
   DialogActions,
   Card,
   CardContent,
-  Stack,
 } from "@mui/material";
 import { api } from "../services/api";
 import toast, { Toaster } from "react-hot-toast";
@@ -40,12 +39,11 @@ const Payments = () => {
   const [description, setDescription] = useState("");
   const [selectedStudent, setSelectedStudent] = useState("");
   const [selectedGroup, setSelectedGroup] = useState("");
-  const [selectedTeacher, setSelectedTeacher] = useState("");
   const [selectedMonth, setSelectedMonth] = useState(
     new Date().toISOString().slice(0, 7)
   );
-
   const [confirmOpen, setConfirmOpen] = useState(false);
+
   const [filters, setFilters] = useState({
     month: new Date().toISOString().slice(0, 7),
     group: "",
@@ -76,9 +74,9 @@ const Payments = () => {
     ]);
   };
 
-  // ============================
-  // Fetch funksiyalar
-  // ============================
+  // ==========================
+  // API funksiyalar
+  // ==========================
   const fetchPayments = async () => {
     try {
       const res = await api.get("/payments");
@@ -125,9 +123,9 @@ const Payments = () => {
     }
   };
 
-  // ============================
-  // Statistika hisoblash
-  // ============================
+  // ==========================
+  // Statistikalar
+  // ==========================
   const calculateStats = (data) => {
     if (!data || data.length === 0) return;
     const totalPaid = data.reduce((acc, p) => acc + (p.amount || 0), 0);
@@ -139,9 +137,9 @@ const Payments = () => {
     setStats({ totalPaid, totalDebts, totalStudents, totalGroups });
   };
 
-  // ============================
+  // ==========================
   // Guruh bo‘yicha filtr
-  // ============================
+  // ==========================
   const handleGroupChange = (groupId) => {
     setSelectedGroup(groupId);
     if (groupId) {
@@ -153,9 +151,9 @@ const Payments = () => {
     }
   };
 
-  // ============================
-  // Filtr qo‘llash
-  // ============================
+  // ==========================
+  // Filtrlangan to‘lovlar
+  // ==========================
   const filteredPayments = payments.filter((p) => {
     return (
       (!filters.month || p.month === filters.month) &&
@@ -164,9 +162,9 @@ const Payments = () => {
     );
   });
 
-  // ============================
+  // ==========================
   // To‘lov qo‘shish
-  // ============================
+  // ==========================
   const handleAddPayment = async () => {
     if (!selectedGroup || !selectedStudent || !amount) {
       toast.error("Barcha maydonlarni to‘ldiring!");
@@ -197,6 +195,9 @@ const Payments = () => {
     }
   };
 
+  // ==========================
+  // Helperlar
+  // ==========================
   const getGroupName = (id) => groups.find((g) => g.id === id)?.name || "-";
   const getStudentName = (id) =>
     students.find((s) => s.id === id)?.username || "-";
@@ -210,7 +211,7 @@ const Payments = () => {
         💳 To‘lovlar paneli
       </Typography>
 
-      {/* Statistikalar */}
+      {/* ========================== Statistikalar ========================== */}
       <Grid container spacing={2} mb={3}>
         {[
           {
@@ -227,7 +228,7 @@ const Payments = () => {
           { label: "🏫 Guruhlar", value: stats.totalGroups, color: "#f9f9f9" },
         ].map((item, i) => (
           <Grid item xs={12} sm={6} md={3} key={i}>
-            <Card sx={{ bgcolor: item.color }}>
+            <Card sx={{ bgcolor: item.color, borderRadius: 3 }}>
               <CardContent>
                 <Typography fontWeight={500}>{item.label}</Typography>
                 <Typography variant="h6">
@@ -239,8 +240,8 @@ const Payments = () => {
         ))}
       </Grid>
 
-      {/* Filtrlar */}
-      <Paper sx={{ p: 2, mb: 3 }}>
+      {/* ========================== Filtrlar ========================== */}
+      <Paper sx={{ p: 2, mb: 3, borderRadius: 3 }}>
         <Grid container spacing={2} alignItems="center">
           <Grid item xs={12} sm={4} md={3}>
             <TextField
@@ -253,7 +254,6 @@ const Payments = () => {
               }
             />
           </Grid>
-
           <Grid item xs={12} sm={4} md={3}>
             <FormControl fullWidth>
               <InputLabel>Guruh</InputLabel>
@@ -273,7 +273,6 @@ const Payments = () => {
               </Select>
             </FormControl>
           </Grid>
-
           <Grid item xs={12} sm={4} md={3}>
             <FormControl fullWidth>
               <InputLabel>O‘qituvchi</InputLabel>
@@ -293,7 +292,6 @@ const Payments = () => {
               </Select>
             </FormControl>
           </Grid>
-
           <Grid item xs={12} sm={12} md={3}>
             <Button
               variant="contained"
@@ -307,7 +305,7 @@ const Payments = () => {
         </Grid>
       </Paper>
 
-      {/* To‘lov qo‘shish formasi */}
+      {/* ========================== To‘lov qo‘shish ========================== */}
       {(role === "teacher" || role === "manager" || role === "admin") && (
         <Paper sx={{ p: 3, mb: 3, borderRadius: 3, boxShadow: 3 }}>
           <Typography variant="h6" sx={{ mb: 2 }}>
@@ -398,115 +396,125 @@ const Payments = () => {
         </Paper>
       )}
 
-      {/* To‘lovlar jadvali */}
-      <TableContainer component={Paper} sx={{ borderRadius: 3 }}>
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>
-                <b>Student</b>
-              </TableCell>
-              <TableCell>
-                <b>Guruh</b>
-              </TableCell>
-              <TableCell>
-                <b>O‘qituvchi</b>
-              </TableCell>
-              <TableCell>
-                <b>Miqdor</b>
-              </TableCell>
-              <TableCell>
-                <b>Oy</b>
-              </TableCell>
-              <TableCell>
-                <b>Holat</b>
-              </TableCell>
-              <TableCell>
-                <b>Sana</b>
-              </TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {filteredPayments.map((p) => (
-              <TableRow key={p.id}>
-                <TableCell>{getStudentName(p.student_id)}</TableCell>
-                <TableCell>{getGroupName(p.group_id)}</TableCell>
-                <TableCell>{getTeacherName(p.teacher_id)}</TableCell>
+      {/* ========================== To‘lovlar jadvali ========================== */}
+      <Box sx={{ width: "100%", overflowX: "auto" }}>
+        <TableContainer
+          component={Paper}
+          sx={{ borderRadius: 3, minWidth: 800 }}
+        >
+          <Table size="small">
+            <TableHead>
+              <TableRow>
                 <TableCell>
-                  <Chip
-                    label={`${p.amount.toLocaleString()} so‘m`}
-                    color="success"
-                    variant="outlined"
-                  />
-                </TableCell>
-                <TableCell>{p.month || "-"}</TableCell>
-                <TableCell>
-                  {p.status === "paid" ? (
-                    <Chip label="To‘langan" color="success" />
-                  ) : (
-                    <Chip label="To‘lanmagan" color="warning" />
-                  )}
+                  <b>Student</b>
                 </TableCell>
                 <TableCell>
-                  {new Date(p.created_at).toLocaleDateString("uz-UZ")}
+                  <b>Guruh</b>
+                </TableCell>
+                <TableCell>
+                  <b>O‘qituvchi</b>
+                </TableCell>
+                <TableCell>
+                  <b>Miqdor</b>
+                </TableCell>
+                <TableCell>
+                  <b>Oy</b>
+                </TableCell>
+                <TableCell>
+                  <b>Holat</b>
+                </TableCell>
+                <TableCell>
+                  <b>Sana</b>
                 </TableCell>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+            </TableHead>
+            <TableBody>
+              {filteredPayments.map((p) => (
+                <TableRow key={p.id}>
+                  <TableCell>{getStudentName(p.student_id)}</TableCell>
+                  <TableCell>{getGroupName(p.group_id)}</TableCell>
+                  <TableCell>{getTeacherName(p.teacher_id)}</TableCell>
+                  <TableCell>
+                    <Chip
+                      label={`${p.amount.toLocaleString()} so‘m`}
+                      color="success"
+                      variant="outlined"
+                    />
+                  </TableCell>
+                  <TableCell>{p.month || "-"}</TableCell>
+                  <TableCell>
+                    {p.status === "paid" ? (
+                      <Chip label="To‘langan" color="success" />
+                    ) : (
+                      <Chip label="To‘lanmagan" color="warning" />
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {new Date(p.created_at).toLocaleDateString("uz-UZ")}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Box>
 
-      {/* Qarzdorlar */}
+      {/* ========================== Qarzdorlar ========================== */}
       <Typography variant="h6" sx={{ mt: 6, mb: 2 }}>
         💰 Qarzdorlar ro‘yxati
       </Typography>
-      <TableContainer component={Paper} sx={{ borderRadius: 3 }}>
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>
-                <b>Student</b>
-              </TableCell>
-              <TableCell>
-                <b>Guruh</b>
-              </TableCell>
-              <TableCell>
-                <b>Qarzdorlik</b>
-              </TableCell>
-              <TableCell>
-                <b>To‘lov muddati</b>
-              </TableCell>
-              <TableCell>
-                <b>Holat</b>
-              </TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {debts.map((d) => (
-              <TableRow
-                key={d.id}
-                sx={{ bgcolor: d.is_overdue ? "#ffebee" : "inherit" }}
-              >
-                <TableCell>{getStudentName(d.student_id)}</TableCell>
-                <TableCell>{getGroupName(d.group_id)}</TableCell>
+      <Box sx={{ width: "100%", overflowX: "auto" }}>
+        <TableContainer
+          component={Paper}
+          sx={{ borderRadius: 3, minWidth: 800 }}
+        >
+          <Table size="small">
+            <TableHead>
+              <TableRow>
                 <TableCell>
-                  <Chip
-                    label={`${d.debt_amount || 0} so‘m`}
-                    color={d.is_overdue ? "error" : "warning"}
-                    variant="outlined"
-                  />
+                  <b>Student</b>
                 </TableCell>
-                <TableCell>{d.due_date || "-"}</TableCell>
                 <TableCell>
-                  {d.is_overdue ? "Muddat o‘tgan" : "To‘lanmagan"}
+                  <b>Guruh</b>
+                </TableCell>
+                <TableCell>
+                  <b>Qarzdorlik</b>
+                </TableCell>
+                <TableCell>
+                  <b>To‘lov muddati</b>
+                </TableCell>
+                <TableCell>
+                  <b>Holat</b>
                 </TableCell>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+            </TableHead>
+            <TableBody>
+              {debts.map((d) => (
+                <TableRow
+                  key={d.id}
+                  sx={{ bgcolor: d.is_overdue ? "#ffebee" : "inherit" }}
+                >
+                  <TableCell>{getStudentName(d.student_id)}</TableCell>
+                  <TableCell>{getGroupName(d.group_id)}</TableCell>
+                  <TableCell>
+                    <Chip
+                      label={`${d.debt_amount || 0} so‘m`}
+                      color={d.is_overdue ? "error" : "warning"}
+                      variant="outlined"
+                    />
+                  </TableCell>
+                  <TableCell>{d.due_date || "-"}</TableCell>
+                  <TableCell>
+                    {d.is_overdue ? "Muddat o‘tgan" : "To‘lanmagan"}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Box>
 
-      {/* Tasdiqlash modal */}
+      {/* ========================== Tasdiqlash modal ========================== */}
       <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
         <DialogTitle>To‘lovni qo‘shish</DialogTitle>
         <DialogContent>
