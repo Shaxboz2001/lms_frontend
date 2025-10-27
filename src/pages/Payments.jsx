@@ -21,6 +21,9 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Card,
+  CardContent,
+  Stack,
 } from "@mui/material";
 import { api } from "../services/api";
 import toast, { Toaster } from "react-hot-toast";
@@ -30,27 +33,48 @@ const Payments = () => {
   const [debts, setDebts] = useState([]);
   const [students, setStudents] = useState([]);
   const [groups, setGroups] = useState([]);
+  const [teachers, setTeachers] = useState([]);
   const [filteredStudents, setFilteredStudents] = useState([]);
 
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [selectedStudent, setSelectedStudent] = useState("");
   const [selectedGroup, setSelectedGroup] = useState("");
+  const [selectedTeacher, setSelectedTeacher] = useState("");
   const [selectedMonth, setSelectedMonth] = useState(
     new Date().toISOString().slice(0, 7)
   );
 
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [filters, setFilters] = useState({
+    month: new Date().toISOString().slice(0, 7),
+    group: "",
+    teacher: "",
+  });
+
+  const [stats, setStats] = useState({
+    totalPaid: 0,
+    totalDebts: 0,
+    totalStudents: 0,
+    totalGroups: 0,
+  });
 
   const role = localStorage.getItem("role");
   const userId = localStorage.getItem("userId");
 
   useEffect(() => {
-    fetchPayments();
-    fetchGroups();
-    fetchStudents();
-    fetchDebts();
+    fetchAllData();
   }, []);
+
+  const fetchAllData = async () => {
+    await Promise.all([
+      fetchPayments(),
+      fetchGroups(),
+      fetchStudents(),
+      fetchTeachers(),
+      fetchDebts(),
+    ]);
+  };
 
   // ============================
   // Fetch funksiyalar
@@ -59,6 +83,7 @@ const Payments = () => {
     try {
       const res = await api.get("/payments");
       setPayments(res.data);
+      calculateStats(res.data);
     } catch {
       toast.error("To‘lovlarni olishda xatolik!");
     }
@@ -91,6 +116,29 @@ const Payments = () => {
     }
   };
 
+  const fetchTeachers = async () => {
+    try {
+      const res = await api.get("/users");
+      setTeachers(res.data.filter((u) => u.role === "teacher"));
+    } catch {
+      toast.error("O‘qituvchilarni olishda xatolik!");
+    }
+  };
+
+  // ============================
+  // Statistika hisoblash
+  // ============================
+  const calculateStats = (data) => {
+    if (!data || data.length === 0) return;
+    const totalPaid = data.reduce((acc, p) => acc + (p.amount || 0), 0);
+    const totalDebts = data
+      .filter((p) => p.status !== "paid")
+      .reduce((acc, p) => acc + (p.debt_amount || 0), 0);
+    const totalStudents = new Set(data.map((p) => p.student_id)).size;
+    const totalGroups = new Set(data.map((p) => p.group_id)).size;
+    setStats({ totalPaid, totalDebts, totalStudents, totalGroups });
+  };
+
   // ============================
   // Guruh bo‘yicha filtr
   // ============================
@@ -104,6 +152,17 @@ const Payments = () => {
       setFilteredStudents([]);
     }
   };
+
+  // ============================
+  // Filtr qo‘llash
+  // ============================
+  const filteredPayments = payments.filter((p) => {
+    return (
+      (!filters.month || p.month === filters.month) &&
+      (!filters.group || p.group_id === filters.group) &&
+      (!filters.teacher || p.teacher_id === filters.teacher)
+    );
+  });
 
   // ============================
   // To‘lov qo‘shish
@@ -131,49 +190,132 @@ const Payments = () => {
       setSelectedGroup("");
       setSelectedMonth(new Date().toISOString().slice(0, 7));
       setFilteredStudents([]);
-
-      fetchPayments();
-      fetchDebts();
+      fetchAllData();
       setConfirmOpen(false);
     } catch (err) {
       toast.error(err.response?.data?.detail || "To‘lovni qo‘shishda xatolik!");
     }
   };
 
-  // ============================
-  // Helper funksiyalar
-  // ============================
   const getGroupName = (id) => groups.find((g) => g.id === id)?.name || "-";
   const getStudentName = (id) =>
     students.find((s) => s.id === id)?.username || "-";
+  const getTeacherName = (id) =>
+    teachers.find((t) => t.id === id)?.full_name || "-";
 
   return (
     <Box sx={{ p: { xs: 2, md: 4 } }}>
       <Toaster position="top-right" />
-
       <Typography variant="h5" sx={{ mb: 3, fontWeight: 600 }}>
-        💳 To‘lovlar
+        💳 To‘lovlar paneli
       </Typography>
 
-      {/* ============================
-          🔹 To‘lov qo‘shish formasi
-      ============================ */}
-      {(role === "teacher" || role === "manager" || role === "admin") && (
-        <Paper
-          sx={{
-            p: 3,
-            mb: 3,
-            borderRadius: 3,
-            boxShadow: 3,
-          }}
-        >
-          <Grid container spacing={2}>
-            {/* Guruh tanlash */}
-            <Grid item xs={12} sm={6} md={2.5}>
-              <FormControl
-                fullWidth
-                sx={{ minWidth: { xs: "100%", sm: 200, md: 240 } }}
+      {/* Statistikalar */}
+      <Grid container spacing={2} mb={3}>
+        {[
+          {
+            label: "💰 Umumiy tushum",
+            value: stats.totalPaid,
+            color: "#e8fff3",
+          },
+          { label: "⚠️ Qarzdorlik", value: stats.totalDebts, color: "#fff6e6" },
+          {
+            label: "👨‍🎓 O‘quvchilar",
+            value: stats.totalStudents,
+            color: "#f3f9ff",
+          },
+          { label: "🏫 Guruhlar", value: stats.totalGroups, color: "#f9f9f9" },
+        ].map((item, i) => (
+          <Grid item xs={12} sm={6} md={3} key={i}>
+            <Card sx={{ bgcolor: item.color }}>
+              <CardContent>
+                <Typography fontWeight={500}>{item.label}</Typography>
+                <Typography variant="h6">
+                  {item.value.toLocaleString()} {i < 2 ? "so‘m" : ""}
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
+
+      {/* Filtrlar */}
+      <Paper sx={{ p: 2, mb: 3 }}>
+        <Grid container spacing={2} alignItems="center">
+          <Grid item xs={12} sm={4} md={3}>
+            <TextField
+              fullWidth
+              label="Oy"
+              type="month"
+              value={filters.month}
+              onChange={(e) =>
+                setFilters({ ...filters, month: e.target.value })
+              }
+            />
+          </Grid>
+
+          <Grid item xs={12} sm={4} md={3}>
+            <FormControl fullWidth>
+              <InputLabel>Guruh</InputLabel>
+              <Select
+                value={filters.group}
+                label="Guruh"
+                onChange={(e) =>
+                  setFilters({ ...filters, group: e.target.value })
+                }
               >
+                <MenuItem value="">Barchasi</MenuItem>
+                {groups.map((g) => (
+                  <MenuItem key={g.id} value={g.id}>
+                    {g.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+
+          <Grid item xs={12} sm={4} md={3}>
+            <FormControl fullWidth>
+              <InputLabel>O‘qituvchi</InputLabel>
+              <Select
+                value={filters.teacher}
+                label="O‘qituvchi"
+                onChange={(e) =>
+                  setFilters({ ...filters, teacher: e.target.value })
+                }
+              >
+                <MenuItem value="">Barchasi</MenuItem>
+                {teachers.map((t) => (
+                  <MenuItem key={t.id} value={t.id}>
+                    {t.full_name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+
+          <Grid item xs={12} sm={12} md={3}>
+            <Button
+              variant="contained"
+              color="primary"
+              fullWidth
+              onClick={fetchAllData}
+            >
+              Filtrni yangilash
+            </Button>
+          </Grid>
+        </Grid>
+      </Paper>
+
+      {/* To‘lov qo‘shish formasi */}
+      {(role === "teacher" || role === "manager" || role === "admin") && (
+        <Paper sx={{ p: 3, mb: 3, borderRadius: 3, boxShadow: 3 }}>
+          <Typography variant="h6" sx={{ mb: 2 }}>
+            ➕ Yangi to‘lov qo‘shish
+          </Typography>
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6} md={3}>
+              <FormControl fullWidth>
                 <InputLabel>Guruh</InputLabel>
                 <Select
                   value={selectedGroup}
@@ -181,9 +323,7 @@ const Payments = () => {
                   onChange={(e) => {
                     const selectedId = e.target.value;
                     setSelectedGroup(selectedId);
-                    const selected = groups.find(
-                      (group) => group.id === selectedId
-                    );
+                    const selected = groups.find((g) => g.id === selectedId);
                     if (selected) setAmount(selected.fee || "");
                     handleGroupChange(selectedId);
                   }}
@@ -197,7 +337,6 @@ const Payments = () => {
               </FormControl>
             </Grid>
 
-            {/* Miqdor */}
             <Grid item xs={12} sm={6} md={2.5}>
               <TextField
                 fullWidth
@@ -208,7 +347,6 @@ const Payments = () => {
               />
             </Grid>
 
-            {/* Tavsif */}
             <Grid item xs={12} sm={6} md={3}>
               <TextField
                 fullWidth
@@ -218,13 +356,8 @@ const Payments = () => {
               />
             </Grid>
 
-            {/* Student tanlash */}
             <Grid item xs={12} sm={6} md={2.5}>
-              <FormControl
-                fullWidth
-                sx={{ minWidth: { xs: "100%", sm: 200, md: 240 } }}
-                disabled={!filteredStudents.length}
-              >
+              <FormControl fullWidth disabled={!filteredStudents.length}>
                 <InputLabel>Student</InputLabel>
                 <Select
                   value={selectedStudent}
@@ -240,7 +373,6 @@ const Payments = () => {
               </FormControl>
             </Grid>
 
-            {/* Oy */}
             <Grid item xs={12} sm={6} md={2}>
               <TextField
                 fullWidth
@@ -251,17 +383,12 @@ const Payments = () => {
               />
             </Grid>
 
-            {/* Qo‘shish tugmasi */}
             <Grid item xs={12} md={1.5}>
               <Button
                 fullWidth
                 variant="contained"
                 color="primary"
-                sx={{
-                  height: "100%",
-                  fontWeight: 600,
-                  textTransform: "none",
-                }}
+                sx={{ height: "100%", fontWeight: 600 }}
                 onClick={() => setConfirmOpen(true)}
               >
                 Qo‘shish
@@ -271,21 +398,19 @@ const Payments = () => {
         </Paper>
       )}
 
-      {/* ============================
-          📊 To‘lovlar jadvali
-      ============================ */}
+      {/* To‘lovlar jadvali */}
       <TableContainer component={Paper} sx={{ borderRadius: 3 }}>
         <Table size="small">
           <TableHead>
             <TableRow>
               <TableCell>
-                <b>ID</b>
-              </TableCell>
-              <TableCell>
                 <b>Student</b>
               </TableCell>
               <TableCell>
                 <b>Guruh</b>
+              </TableCell>
+              <TableCell>
+                <b>O‘qituvchi</b>
               </TableCell>
               <TableCell>
                 <b>Miqdor</b>
@@ -294,7 +419,7 @@ const Payments = () => {
                 <b>Oy</b>
               </TableCell>
               <TableCell>
-                <b>Tavsif</b>
+                <b>Holat</b>
               </TableCell>
               <TableCell>
                 <b>Sana</b>
@@ -302,20 +427,26 @@ const Payments = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {payments.map((p) => (
+            {filteredPayments.map((p) => (
               <TableRow key={p.id}>
-                <TableCell>{p.id}</TableCell>
                 <TableCell>{getStudentName(p.student_id)}</TableCell>
                 <TableCell>{getGroupName(p.group_id)}</TableCell>
+                <TableCell>{getTeacherName(p.teacher_id)}</TableCell>
                 <TableCell>
                   <Chip
-                    label={`${p.amount} so‘m`}
+                    label={`${p.amount.toLocaleString()} so‘m`}
                     color="success"
                     variant="outlined"
                   />
                 </TableCell>
                 <TableCell>{p.month || "-"}</TableCell>
-                <TableCell>{p.description || "-"}</TableCell>
+                <TableCell>
+                  {p.status === "paid" ? (
+                    <Chip label="To‘langan" color="success" />
+                  ) : (
+                    <Chip label="To‘lanmagan" color="warning" />
+                  )}
+                </TableCell>
                 <TableCell>
                   {new Date(p.created_at).toLocaleDateString("uz-UZ")}
                 </TableCell>
@@ -325,22 +456,10 @@ const Payments = () => {
         </Table>
       </TableContainer>
 
-      {payments.length === 0 && (
-        <Typography
-          variant="body2"
-          sx={{ mt: 2, textAlign: "center", color: "gray" }}
-        >
-          Hozircha hech qanday to‘lov mavjud emas.
-        </Typography>
-      )}
-
-      {/* ============================
-          💰 Qarzdorlar jadvali
-      ============================ */}
+      {/* Qarzdorlar */}
       <Typography variant="h6" sx={{ mt: 6, mb: 2 }}>
         💰 Qarzdorlar ro‘yxati
       </Typography>
-
       <TableContainer component={Paper} sx={{ borderRadius: 3 }}>
         <Table size="small">
           <TableHead>
@@ -350,9 +469,6 @@ const Payments = () => {
               </TableCell>
               <TableCell>
                 <b>Guruh</b>
-              </TableCell>
-              <TableCell>
-                <b>To‘lanishi kerak</b>
               </TableCell>
               <TableCell>
                 <b>Qarzdorlik</b>
@@ -373,7 +489,6 @@ const Payments = () => {
               >
                 <TableCell>{getStudentName(d.student_id)}</TableCell>
                 <TableCell>{getGroupName(d.group_id)}</TableCell>
-                <TableCell>{d.total_due || 0} so‘m</TableCell>
                 <TableCell>
                   <Chip
                     label={`${d.debt_amount || 0} so‘m`}
@@ -391,18 +506,7 @@ const Payments = () => {
         </Table>
       </TableContainer>
 
-      {debts.length === 0 && (
-        <Typography
-          variant="body2"
-          sx={{ mt: 2, textAlign: "center", color: "gray" }}
-        >
-          Hech qanday qarzdorlik topilmadi.
-        </Typography>
-      )}
-
-      {/* ============================
-          🧾 Tasdiqlash modal
-      ============================ */}
+      {/* Tasdiqlash modal */}
       <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
         <DialogTitle>To‘lovni qo‘shish</DialogTitle>
         <DialogContent>
