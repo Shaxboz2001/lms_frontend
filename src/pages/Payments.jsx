@@ -116,25 +116,28 @@ const Payment = () => {
       field: "student",
       headerName: "O‘quvchi",
       flex: 1.2,
-      valueGetter: (params) => params.row.student?.full_name,
+      valueGetter: (params) =>
+        params?.row?.student?.full_name ||
+        params?.row?.student?.username ||
+        "—",
     },
     {
       field: "group",
       headerName: "Guruh",
       flex: 1,
-      valueGetter: (params) => params.row.group?.name,
+      valueGetter: (params) => params?.row?.group?.name || "—",
     },
     {
       field: "amount",
       headerName: "To‘langan (so‘m)",
       flex: 1,
-      valueFormatter: (p) => p.value?.toLocaleString(),
+      valueFormatter: (p) => (p?.value ? p.value.toLocaleString() : "0"),
     },
     {
       field: "debt_amount",
       headerName: "Qarz (so‘m)",
       flex: 1,
-      valueFormatter: (p) => p.value?.toLocaleString(),
+      valueFormatter: (p) => (p?.value ? p.value.toLocaleString() : "0"),
     },
     {
       field: "status",
@@ -142,16 +145,16 @@ const Payment = () => {
       flex: 0.8,
       renderCell: (params) => {
         const color =
-          params.value === "paid"
+          params?.value === "paid"
             ? "#2e7d32"
-            : params.value === "partial"
+            : params?.value === "partial"
             ? "#ed6c02"
             : "#d32f2f";
         return (
           <span style={{ color, fontWeight: 600 }}>
-            {params.value === "paid"
+            {params?.value === "paid"
               ? "To‘langan"
-              : params.value === "partial"
+              : params?.value === "partial"
               ? "Qisman"
               : "To‘lanmagan"}
           </span>
