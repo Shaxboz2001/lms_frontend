@@ -374,9 +374,182 @@ const Payments = () => {
           />
         </Box>
       )}
+      {/* ADD PAYMENT MODAL */}
+      <Modal open={openAdd} onClose={() => setOpenAdd(false)}>
+        <Box
+          sx={{
+            bgcolor: "white",
+            p: 3,
+            borderRadius: 2,
+            width: 400,
+            mx: "auto",
+            mt: 10,
+          }}
+        >
+          <Typography variant="h6" mb={2}>
+            ➕ To‘lov qo‘shish
+          </Typography>
 
-      {/* MODALLAR (To‘lov qo‘shish, Tarix, To‘lov belgilash) */}
-      {/* ... (qolgan modal kodlari sizning oldingi versiyada qoladi, o‘zgartirishsiz) ... */}
+          <FormControl fullWidth size="small" sx={{ mb: 2 }}>
+            <InputLabel>O‘quvchi</InputLabel>
+            <Select
+              value={form.student_id}
+              label="O‘quvchi"
+              onChange={(e) => setForm({ ...form, student_id: e.target.value })}
+            >
+              {students.map((s) => (
+                <MenuItem key={s.id} value={s.id}>
+                  {s.full_name || s.username}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <TextField
+            label="Oy (YYYY-MM)"
+            fullWidth
+            size="small"
+            sx={{ mb: 2 }}
+            placeholder="Masalan: 2025-11"
+            value={form.month}
+            onChange={(e) => setForm({ ...form, month: e.target.value })}
+          />
+
+          <TextField
+            label="Summa"
+            fullWidth
+            size="small"
+            type="number"
+            sx={{ mb: 2 }}
+            value={form.amount}
+            onChange={(e) => setForm({ ...form, amount: e.target.value })}
+          />
+          <TextField
+            label="Izoh"
+            fullWidth
+            size="small"
+            sx={{ mb: 2 }}
+            value={form.description}
+            onChange={(e) => setForm({ ...form, description: e.target.value })}
+          />
+          <Button fullWidth variant="contained" onClick={handleAddPayment}>
+            Saqlash
+          </Button>
+        </Box>
+      </Modal>
+
+      {/* MARK AS PAID MODAL */}
+      <Modal open={openPayModal} onClose={() => setOpenPayModal(false)}>
+        <Box
+          sx={{
+            bgcolor: "white",
+            p: 3,
+            borderRadius: 2,
+            width: 400,
+            mx: "auto",
+            mt: 10,
+          }}
+        >
+          <Typography variant="h6" mb={2}>
+            💰 To‘lovni belgilash
+          </Typography>
+          <Typography mb={1}>
+            O‘quvchi:{" "}
+            <strong>
+              {selectedPayment?.student?.full_name ||
+                selectedPayment?.student?.username ||
+                "-"}
+            </strong>
+          </Typography>
+          <Typography mb={2}>
+            Kurs:{" "}
+            <strong>{selectedPayment?.group?.course?.title || "-"}</strong>
+          </Typography>
+          <TextField
+            label="To‘lov summasi (so‘m)"
+            type="number"
+            fullWidth
+            size="small"
+            sx={{ mb: 2 }}
+            value={payAmount}
+            onChange={(e) => setPayAmount(e.target.value)}
+          />
+          <Button fullWidth variant="contained" onClick={handleMarkPaid}>
+            Tasdiqlash
+          </Button>
+        </Box>
+      </Modal>
+
+      {/* HISTORY MODAL */}
+      <Modal open={openHistory} onClose={() => setOpenHistory(false)}>
+        <Box
+          sx={{
+            bgcolor: "white",
+            p: 3,
+            borderRadius: 2,
+            width: { xs: "90%", md: 600 },
+            mx: "auto",
+            mt: 8,
+            maxHeight: "80vh",
+            overflowY: "auto",
+          }}
+        >
+          <Typography variant="h6" mb={2}>
+            📜 {historyData?.student_name} to‘lov tarixi
+          </Typography>
+          {historyData ? (
+            <>
+              <Typography>
+                Jami to‘langan:{" "}
+                <strong>{historyData.total_paid.toLocaleString()} so‘m</strong>
+              </Typography>
+              <Typography mb={2}>
+                Qarzdorlik:{" "}
+                <strong>{historyData.total_debt.toLocaleString()} so‘m</strong>
+              </Typography>
+              {historyData.history.map((h, i) => (
+                <Box
+                  key={i}
+                  sx={{
+                    borderBottom: "1px solid #eee",
+                    py: 1,
+                    mb: 1,
+                  }}
+                >
+                  <Typography variant="body2">
+                    <b>{h.month}</b> — {h.course_name} / {h.group_name}
+                  </Typography>
+                  <Typography variant="body2">
+                    To‘langan: {h.amount.toLocaleString()} so‘m
+                  </Typography>
+                  <Typography variant="body2">
+                    Qarzdorlik: {h.debt_amount.toLocaleString()} so‘m
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    color={
+                      h.status === "paid"
+                        ? "green"
+                        : h.status === "partial"
+                        ? "orange"
+                        : "red"
+                    }
+                  >
+                    Holat:{" "}
+                    {h.status === "paid"
+                      ? "To‘langan"
+                      : h.status === "partial"
+                      ? "Qisman"
+                      : "To‘lanmagan"}
+                  </Typography>
+                </Box>
+              ))}
+            </>
+          ) : (
+            <Typography>Ma’lumot yo‘q</Typography>
+          )}
+        </Box>
+      </Modal>
     </Box>
   );
 };
