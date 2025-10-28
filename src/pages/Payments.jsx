@@ -59,7 +59,7 @@ const Payments = () => {
       field: "student",
       headerName: "O‘quvchi",
       flex: 1.2,
-      valueGetter: (params) => getStudentName(params?.row?.student_id),
+      valueGetter: (params) => getStudentName(params?.row?.student.full_name),
     },
     {
       field: "group",
