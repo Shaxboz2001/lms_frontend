@@ -41,11 +41,13 @@ const Payments = () => {
 
   // 🔹 ID orqali ism yoki guruh nomini olish
   const getStudentName = (id) => {
+    if (!id) return "—";
     const s = students.find((x) => x.id === id);
     return s ? s.full_name || s.username : "—";
   };
 
   const getGroupName = (id) => {
+    if (!id) return "—";
     const g = groups.find((x) => x.id === id);
     return g ? g.name : "—";
   };
@@ -54,16 +56,16 @@ const Payments = () => {
   const columns = [
     { field: "id", headerName: "ID", width: 70 },
     {
-      field: "student_id",
+      field: "student",
       headerName: "O‘quvchi",
       flex: 1.2,
-      valueGetter: (params) => getStudentName(params.row.student_id),
+      valueGetter: (params) => getStudentName(params?.row?.student_id),
     },
     {
-      field: "group_id",
+      field: "group",
       headerName: "Guruh",
       flex: 1,
-      valueGetter: (params) => getGroupName(params.row.group_id),
+      valueGetter: (params) => getGroupName(params?.row?.group_id),
     },
     {
       field: "amount",
@@ -113,7 +115,7 @@ const Payments = () => {
           variant="contained"
           size="small"
           color="primary"
-          onClick={() => toast(`To‘lov ID: ${params.row.id}`)}
+          onClick={() => toast(`To‘lov ID: ${params?.row?.id}`)}
         >
           💵 To‘lov
         </Button>
