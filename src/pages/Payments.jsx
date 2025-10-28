@@ -238,7 +238,7 @@ const Payments = () => {
         </Grid>
       </Grid>
 
-      {loading ? (
+      {loading && filteredPayments ? (
         <Box textAlign="center" mt={4}>
           <CircularProgress />
           <Typography mt={1}>Yuklanmoqda...</Typography>
