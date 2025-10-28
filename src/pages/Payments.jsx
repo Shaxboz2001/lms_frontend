@@ -39,17 +39,25 @@ const Payments = () => {
     fetchData();
   }, []);
 
-  // 🔹 ID orqali ism yoki guruh nomini olish
-  const getStudentName = (id) => {
-    if (!id) return "—";
-    const s = students.find((x) => x.id === id);
-    return s ? s.full_name || s.username : "—";
+  // 🔹 O‘quvchi nomini olish
+  const getStudentName = (row) => {
+    if (row?.student?.full_name) return row.student.full_name;
+    if (row?.student?.username) return row.student.username;
+    if (row?.student_id) {
+      const s = students.find((x) => x.id === row.student_id);
+      return s ? s.full_name || s.username : "—";
+    }
+    return "—";
   };
 
-  const getGroupName = (id) => {
-    if (!id) return "—";
-    const g = groups.find((x) => x.id === id);
-    return g ? g.name : "—";
+  // 🔹 Guruh nomini olish
+  const getGroupName = (row) => {
+    if (row?.group?.name) return row.group.name;
+    if (row?.group_id) {
+      const g = groups.find((x) => x.id === row.group_id);
+      return g ? g.name : "—";
+    }
+    return "—";
   };
 
   // 🔹 Jadval ustunlari
@@ -59,13 +67,13 @@ const Payments = () => {
       field: "student",
       headerName: "O‘quvchi",
       flex: 1.2,
-      valueGetter: (params) => getStudentName(params?.row?.student.full_name),
+      valueGetter: (params) => getStudentName(params.row),
     },
     {
       field: "group",
       headerName: "Guruh",
       flex: 1,
-      valueGetter: (params) => getGroupName(params?.row?.group_id),
+      valueGetter: (params) => getGroupName(params.row),
     },
     {
       field: "amount",
@@ -90,7 +98,7 @@ const Payments = () => {
       headerName: "Holat",
       flex: 0.8,
       renderCell: (params) => {
-        const val = params?.row?.status;
+        const val = params?.row?.status || "unpaid";
         const color =
           val === "paid"
             ? "#2e7d32"
@@ -117,7 +125,7 @@ const Payments = () => {
           color="primary"
           onClick={() => toast(`To‘lov ID: ${params?.row?.id}`)}
         >
-          💵 To‘lov
+          💵 TO‘LOV
         </Button>
       ),
     },
