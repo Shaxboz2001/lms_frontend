@@ -202,7 +202,7 @@ const Payments = () => {
     { field: "id", headerName: "ID", width: 70 },
     {
       field: "student_name",
-      headerName: "O‘quvchi",
+      headerName: "Oquvchi",
       width: 200,
       valueGetter: (params) =>
         params.row?.student?.full_name || params.row?.student?.username || "-",
