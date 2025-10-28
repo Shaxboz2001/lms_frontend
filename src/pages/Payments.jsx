@@ -341,19 +341,19 @@ const Payments = () => {
                   <TableCell
                     sx={{
                       color:
-                        p.status === "paid"
+                        p.amount === p.student.fee
                           ? "green"
-                          : p.status === "partial"
+                          : p.amount > 0
                           ? "orange"
                           : "red",
                       fontWeight: 600,
                     }}
                   >
-                    {p.status === "paid"
+                    {p.amount === p.student.fee
                       ? "To‘langan"
-                      : p.status === "partial"
+                      : p.amount > 0
                       ? "Qisman"
-                      : "To‘lanmagan"}
+                      : `${p.status}`}
                   </TableCell>
                   <TableCell>
                     <Button
