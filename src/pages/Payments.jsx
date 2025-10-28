@@ -19,11 +19,15 @@ import { api } from "../services/api";
 const Payments = () => {
   const [payments, setPayments] = useState([]);
   const [students, setStudents] = useState([]);
+  const [groups, setGroups] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState("");
   const [loading, setLoading] = useState(false);
   const [openAdd, setOpenAdd] = useState(false);
   const [openHistory, setOpenHistory] = useState(false);
+  const [openPayModal, setOpenPayModal] = useState(false);
   const [historyData, setHistoryData] = useState(null);
+  const [selectedPayment, setSelectedPayment] = useState(null);
+
   const [form, setForm] = useState({
     amount: "",
     student_id: "",
@@ -31,14 +35,15 @@ const Payments = () => {
     month: "",
   });
 
+  const [payAmount, setPayAmount] = useState("");
+
   // ============== FETCH DATA =================
   const fetchPayments = async () => {
     try {
       setLoading(true);
       const res = await api.get("/payments");
       setPayments(Array.isArray(res.data) ? res.data : []);
-    } catch (err) {
-      console.error(err);
+    } catch {
       toast.error("To‘lovlarni olishda xatolik!");
     } finally {
       setLoading(false);
@@ -48,25 +53,30 @@ const Payments = () => {
   const fetchStudents = async () => {
     try {
       const res = await api.get("/users");
-      setStudents(
-        Array.isArray(res.data)
-          ? res.data.filter((u) => u.role === "student")
-          : []
-      );
-    } catch (err) {
-      console.error(err);
+      setStudents(res.data.filter((u) => u.role === "student"));
+    } catch {
       toast.error("O‘quvchilarni olishda xatolik!");
+    }
+  };
+
+  const fetchGroups = async () => {
+    try {
+      const res = await api.get("/groups");
+      setGroups(Array.isArray(res.data) ? res.data : []);
+    } catch {
+      toast.error("Guruhlar olinmadi!");
     }
   };
 
   useEffect(() => {
     fetchPayments();
     fetchStudents();
+    fetchGroups();
   }, []);
 
   // ============== FILTER =================
   const filteredPayments = selectedMonth
-    ? payments.filter((p) => p?.month === selectedMonth)
+    ? payments.filter((p) => p.month === selectedMonth)
     : payments;
 
   // ============== ADD PAYMENT =================
@@ -87,52 +97,67 @@ const Payments = () => {
       setForm({ amount: "", student_id: "", description: "", month: "" });
       fetchPayments();
     } catch (err) {
-      console.error(err);
       toast.error(err.response?.data?.detail || "Xatolik yuz berdi!");
     }
   };
+
+  // ✅ O‘QUVCHI TANLANGANDA avtomatik kurs narxini olish
+  useEffect(() => {
+    if (form.student_id) {
+      const student = students.find((s) => s.id === Number(form.student_id));
+      if (student) {
+        // o‘quvchining guruhi va kurs narxini topamiz
+        const group = groups.find((g) =>
+          g.students?.some((st) => st.id === student.id)
+        );
+        if (group?.course?.price) {
+          setForm((prev) => ({ ...prev, amount: group.course.price }));
+        }
+      }
+    }
+  }, [form.student_id]);
 
   // ============== GENERATE DEBTS =================
   const handleGenerateDebts = async () => {
     try {
       const res = await api.post("/payments/generate-debts");
-      toast.success(res.data?.message || "Qarz yozildi");
+      toast.success(res.data.message);
       fetchPayments();
     } catch (err) {
-      console.error(err);
       toast.error(err.response?.data?.detail || "Qarz yozishda xatolik!");
     }
   };
 
   // ============== GET STUDENT HISTORY =================
   const fetchHistory = async (studentId) => {
-    if (!studentId) return;
     try {
-      setLoading(true);
       const res = await api.get(`/payments/student/${studentId}/history`);
       setHistoryData(res.data);
       setOpenHistory(true);
-    } catch (err) {
-      console.error(err);
+    } catch {
       toast.error("To‘lov tarixi topilmadi!");
-      setHistoryData(null);
-    } finally {
-      setLoading(false);
     }
   };
 
-  // helper: safe date string (some backends return date ISO or string)
-  const safeDate = (val) => {
-    if (!val) return "-";
+  // ============== MARK AS PAID =================
+  const handleMarkPaid = async () => {
+    if (!selectedPayment?.id || !payAmount) {
+      toast.error("Summani kiriting!");
+      return;
+    }
     try {
-      // if it's already YYYY-MM-DD or ISO, normalize to YYYY-MM-DD
-      const d = new Date(val);
-      if (!isNaN(d)) {
-        return d.toISOString().split("T")[0];
-      }
-      return String(val).split("T")[0];
-    } catch {
-      return String(val);
+      await api.put(`/payments/mark-paid/${selectedPayment.id}`, {
+        amount: parseFloat(payAmount),
+      });
+      toast.success("To‘lov yangilandi ✅");
+      setOpenPayModal(false);
+      setPayAmount("");
+      setSelectedPayment(null);
+      fetchPayments();
+    } catch (err) {
+      toast.error(
+        err.response?.data?.detail || "To‘lovni yangilashda xatolik!"
+      );
     }
   };
 
@@ -144,76 +169,67 @@ const Payments = () => {
       headerName: "O‘quvchi",
       width: 200,
       valueGetter: (params) =>
-        params?.row?.student?.full_name ||
-        params?.row?.student?.username ||
-        "-",
+        params.row?.student?.full_name || params.row?.student?.username || "-",
     },
     {
       field: "course_name",
       headerName: "Kurs",
       width: 180,
-      valueGetter: (params) => params?.row?.group?.course?.title || "-",
+      valueGetter: (params) => params.row?.group?.course?.title || "-",
     },
     {
       field: "group_name",
       headerName: "Guruh",
       width: 160,
-      valueGetter: (params) => params?.row?.group?.name || "-",
+      valueGetter: (params) => params.row?.group?.name || "-",
     },
     {
       field: "month",
       headerName: "Oy",
       width: 120,
-      valueGetter: (params) => params?.row?.month || "-",
     },
     {
       field: "amount",
       headerName: "To‘langan",
       width: 130,
-      valueGetter: (params) => params?.row?.amount ?? 0,
-      valueFormatter: (params) =>
-        `${(params?.value ?? 0).toLocaleString()} so‘m`,
+      valueFormatter: (params) => `${params.value?.toLocaleString() || 0} so‘m`,
     },
     {
       field: "debt_amount",
       headerName: "Qarzdorlik",
       width: 130,
-      valueGetter: (params) => params?.row?.debt_amount ?? 0,
-      valueFormatter: (params) =>
-        `${(params?.value ?? 0).toLocaleString()} so‘m`,
+      valueFormatter: (params) => `${params.value?.toLocaleString() || 0} so‘m`,
     },
     {
       field: "status",
       headerName: "Holat",
       width: 130,
-      valueGetter: (params) => params?.row?.status || "unpaid",
-      renderCell: (params) => {
-        const v = params?.value;
-        const text =
-          v === "paid"
+      renderCell: (params) => (
+        <span
+          style={{
+            color:
+              params.value === "paid"
+                ? "green"
+                : params.value === "partial"
+                ? "orange"
+                : "red",
+            fontWeight: 600,
+          }}
+        >
+          {params.value === "paid"
             ? "To‘langan"
-            : v === "partial"
+            : params.value === "partial"
             ? "Qisman"
-            : "To‘lanmagan";
-        const color =
-          v === "paid" ? "green" : v === "partial" ? "orange" : "red";
-        return <span style={{ color, fontWeight: 600 }}>{text}</span>;
-      },
-    },
-    {
-      field: "due_date",
-      headerName: "Muddati",
-      width: 150,
-      valueGetter: (params) => safeDate(params?.row?.due_date),
+            : "To‘lanmagan"}
+        </span>
+      ),
     },
     {
       field: "actions",
       headerName: "Amallar",
-      width: 180,
-      sortable: false,
-      filterable: false,
-      renderCell: (params) =>
-        params?.row?.student_id ? (
+      width: 230,
+      renderCell: (params) => (
+        <Box sx={{ display: "flex", gap: 1 }}>
           <Button
             variant="outlined"
             size="small"
@@ -221,9 +237,19 @@ const Payments = () => {
           >
             Tarix
           </Button>
-        ) : (
-          <span style={{ color: "#777" }}>—</span>
-        ),
+          <Button
+            variant="contained"
+            size="small"
+            color="success"
+            onClick={() => {
+              setSelectedPayment(params.row);
+              setOpenPayModal(true);
+            }}
+          >
+            To‘landi
+          </Button>
+        </Box>
+      ),
     },
   ];
 
@@ -234,6 +260,7 @@ const Payments = () => {
         💸 To‘lovlar boshqaruvi
       </Typography>
 
+      {/* FILTER va BUTTONLAR */}
       <Grid container spacing={2} mb={2}>
         <Grid item xs={12} sm={4}>
           <TextField
@@ -245,13 +272,11 @@ const Payments = () => {
             onChange={(e) => setSelectedMonth(e.target.value)}
           >
             <MenuItem value="">Barcha oylar</MenuItem>
-            {[...new Set(payments.map((p) => p?.month).filter(Boolean))].map(
-              (m) => (
-                <MenuItem key={m} value={m}>
-                  {m}
-                </MenuItem>
-              )
-            )}
+            {[...new Set(payments.map((p) => p.month))].map((m) => (
+              <MenuItem key={m} value={m}>
+                {m}
+              </MenuItem>
+            ))}
           </TextField>
         </Grid>
 
@@ -270,6 +295,7 @@ const Payments = () => {
         </Grid>
       </Grid>
 
+      {/* DATAGRID */}
       {loading ? (
         <Box textAlign="center" mt={4}>
           <CircularProgress />
@@ -288,14 +314,9 @@ const Payments = () => {
           <DataGrid
             rows={filteredPayments}
             columns={columns}
-            getRowId={(r) =>
-              r?.id ??
-              `${r?.student_id ?? "s"}-${r?.month ?? "m"}-${Math.random()}`
-            }
+            getRowId={(r) => r.id}
             pageSize={10}
-            rowsPerPageOptions={[10, 25, 50]}
             disableRowSelectionOnClick
-            autoHeight={false}
           />
         </Box>
       )}
@@ -323,7 +344,6 @@ const Payments = () => {
               label="O‘quvchi"
               onChange={(e) => setForm({ ...form, student_id: e.target.value })}
             >
-              <MenuItem value="">Tanlang</MenuItem>
               {students.map((s) => (
                 <MenuItem key={s.id} value={s.id}>
                   {s.full_name || s.username}
@@ -365,6 +385,48 @@ const Payments = () => {
         </Box>
       </Modal>
 
+      {/* MARK AS PAID MODAL */}
+      <Modal open={openPayModal} onClose={() => setOpenPayModal(false)}>
+        <Box
+          sx={{
+            bgcolor: "white",
+            p: 3,
+            borderRadius: 2,
+            width: 400,
+            mx: "auto",
+            mt: 10,
+          }}
+        >
+          <Typography variant="h6" mb={2}>
+            💰 To‘lovni belgilash
+          </Typography>
+          <Typography mb={1}>
+            O‘quvchi:{" "}
+            <strong>
+              {selectedPayment?.student?.full_name ||
+                selectedPayment?.student?.username ||
+                "-"}
+            </strong>
+          </Typography>
+          <Typography mb={2}>
+            Kurs:{" "}
+            <strong>{selectedPayment?.group?.course?.title || "-"}</strong>
+          </Typography>
+          <TextField
+            label="To‘lov summasi (so‘m)"
+            type="number"
+            fullWidth
+            size="small"
+            sx={{ mb: 2 }}
+            value={payAmount}
+            onChange={(e) => setPayAmount(e.target.value)}
+          />
+          <Button fullWidth variant="contained" onClick={handleMarkPaid}>
+            Tasdiqlash
+          </Button>
+        </Box>
+      </Modal>
+
       {/* HISTORY MODAL */}
       <Modal open={openHistory} onClose={() => setOpenHistory(false)}>
         <Box
@@ -380,23 +442,19 @@ const Payments = () => {
           }}
         >
           <Typography variant="h6" mb={2}>
-            📜 {historyData?.student_name || "O‘quvchi"} to‘lov tarixi
+            📜 {historyData?.student_name} to‘lov tarixi
           </Typography>
           {historyData ? (
             <>
               <Typography>
                 Jami to‘langan:{" "}
-                <strong>
-                  {(historyData.total_paid ?? 0).toLocaleString()} so‘m
-                </strong>
+                <strong>{historyData.total_paid.toLocaleString()} so‘m</strong>
               </Typography>
               <Typography mb={2}>
                 Qarzdorlik:{" "}
-                <strong>
-                  {(historyData.total_debt ?? 0).toLocaleString()} so‘m
-                </strong>
+                <strong>{historyData.total_debt.toLocaleString()} so‘m</strong>
               </Typography>
-              {(historyData.history || []).map((h, i) => (
+              {historyData.history.map((h, i) => (
                 <Box
                   key={i}
                   sx={{
@@ -406,14 +464,13 @@ const Payments = () => {
                   }}
                 >
                   <Typography variant="body2">
-                    <b>{h.month}</b> — {h.course_name || "-"} /{" "}
-                    {h.group_name || "-"}
+                    <b>{h.month}</b> — {h.course_name} / {h.group_name}
                   </Typography>
                   <Typography variant="body2">
-                    To‘langan: {(h.amount ?? 0).toLocaleString()} so‘m
+                    To‘langan: {h.amount.toLocaleString()} so‘m
                   </Typography>
                   <Typography variant="body2">
-                    Qarzdorlik: {(h.debt_amount ?? 0).toLocaleString()} so‘m
+                    Qarzdorlik: {h.debt_amount.toLocaleString()} so‘m
                   </Typography>
                   <Typography
                     variant="body2"
