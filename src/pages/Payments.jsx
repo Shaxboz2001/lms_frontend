@@ -298,7 +298,7 @@ const Payments = () => {
         ),
     },
   ];
-
+  console.log(filteredPayments);
   return (
     <Box sx={{ p: { xs: 2, md: 4 } }}>
       <Toaster position="top-right" />
