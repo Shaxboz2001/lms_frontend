@@ -63,6 +63,7 @@ const Payments = () => {
     ? payments.filter((p) => p.month === selectedMonth)
     : payments;
 
+  console.log(filteredPayments);
   // ============== ADD PAYMENT =================
   const handleAddPayment = async () => {
     if (!form.amount || !form.student_id || !form.month) {
