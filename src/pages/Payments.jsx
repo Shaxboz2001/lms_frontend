@@ -32,9 +32,11 @@ const Payments = () => {
   const [form, setForm] = useState({
     amount: "",
     student_id: "",
+    group_id: "",
     description: "",
     month: "",
   });
+  const [availableGroups, setAvailableGroups] = useState([]);
 
   const [payAmount, setPayAmount] = useState("");
 
@@ -82,7 +84,7 @@ const Payments = () => {
 
   // ============== ADD PAYMENT =================
   const handleAddPayment = async () => {
-    if (!form.amount || !form.student_id || !form.month) {
+    if (!form.amount || !form.student_id || !form.month || !form.group_id) {
       toast.error("Ma’lumotlarni to‘liq kiriting!");
       return;
     }
@@ -90,12 +92,19 @@ const Payments = () => {
       await api.post("/payments", {
         amount: parseFloat(form.amount),
         student_id: parseInt(form.student_id),
+        group_id: parseInt(form.group_id),
         description: form.description,
         month: form.month,
       });
       toast.success("To‘lov muvaffaqiyatli qo‘shildi ✅");
       setOpenAdd(false);
-      setForm({ amount: "", student_id: "", description: "", month: "" });
+      setForm({
+        amount: "",
+        student_id: "",
+        group_id: "",
+        description: "",
+        month: "",
+      });
       fetchPayments();
     } catch (err) {
       toast.error(err.response?.data?.detail || "Xatolik yuz berdi!");
@@ -107,15 +116,26 @@ const Payments = () => {
     if (form.student_id) {
       const student = students.find((s) => s.id === Number(form.student_id));
       if (student) {
-        const group = groups.find((g) =>
+        const groupsForStudent = groups.filter((g) =>
           g.students?.some((st) => st.id === student.id)
         );
-        if (group?.course?.price) {
-          setForm((prev) => ({ ...prev, amount: group.course.price }));
+        setAvailableGroups(groupsForStudent);
+
+        // Agar faqat bitta guruh bo‘lsa — avtomatik tanlaymiz
+        if (groupsForStudent.length === 1) {
+          const group = groupsForStudent[0];
+          setForm((prev) => ({
+            ...prev,
+            group_id: group.id,
+            amount: group.course?.price || "",
+            description: group.course?.title || "",
+          }));
         }
       }
+    } else {
+      setAvailableGroups([]);
     }
-  }, [form.student_id]);
+  }, [form.student_id, groups]);
 
   // ============== GENERATE DEBTS =================
   const handleGenerateDebts = async () => {
@@ -391,15 +411,25 @@ const Payments = () => {
           </Typography>
 
           <FormControl fullWidth size="small" sx={{ mb: 2 }}>
-            <InputLabel>O‘quvchi</InputLabel>
+            <InputLabel>Guruh (kurs)</InputLabel>
             <Select
-              value={form.student_id}
-              label="O‘quvchi"
-              onChange={(e) => setForm({ ...form, student_id: e.target.value })}
+              value={form.group_id}
+              label="Guruh (kurs)"
+              onChange={(e) => {
+                const g = availableGroups.find(
+                  (gr) => gr.id === e.target.value
+                );
+                setForm((prev) => ({
+                  ...prev,
+                  group_id: e.target.value,
+                  amount: g?.course?.price || "",
+                  description: g?.course?.title || "",
+                }));
+              }}
             >
-              {students.map((s) => (
-                <MenuItem key={s.id} value={s.id}>
-                  {s.full_name || s.username}
+              {availableGroups.map((g) => (
+                <MenuItem key={g.id} value={g.id}>
+                  {g.course?.title} — {g.name}
                 </MenuItem>
               ))}
             </Select>
