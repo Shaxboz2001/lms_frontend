@@ -413,7 +413,7 @@ const Payments = () => {
       </Grid>
 
       {/* DATAGRID */}
-      {loading ? (
+      {loading && filteredPayments.length > 0 ? (
         <Box textAlign="center" mt={4}>
           <CircularProgress />
         </Box>
