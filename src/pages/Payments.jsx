@@ -205,36 +205,41 @@ const Payments = () => {
       headerName: "Oquvchi",
       width: 200,
       valueGetter: (params) =>
-        params.row?.student?.full_name || params.row?.student?.username || "-",
+        params?.row?.student?.full_name ||
+        params?.row?.student?.username ||
+        "-",
     },
     {
       field: "course_name",
       headerName: "Kurs",
       width: 180,
-      valueGetter: (params) => params.row?.group?.course?.title || "-",
+      valueGetter: (params) => params?.row?.group?.course?.title || "-",
     },
     {
       field: "group_name",
       headerName: "Guruh",
       width: 160,
-      valueGetter: (params) => params.row?.group?.name || "-",
+      valueGetter: (params) => params?.row?.group?.name || "-",
     },
     {
       field: "month",
       headerName: "Oy",
       width: 120,
+      valueGetter: (params) => params?.row?.month || "-",
     },
     {
       field: "amount",
       headerName: "To‘langan",
       width: 130,
-      valueFormatter: (params) => `${params.value?.toLocaleString() || 0} so‘m`,
+      valueFormatter: (params) =>
+        `${params?.value?.toLocaleString() || 0} so‘m`,
     },
     {
       field: "debt_amount",
       headerName: "Qarzdorlik",
       width: 130,
-      valueFormatter: (params) => `${params.value?.toLocaleString() || 0} so‘m`,
+      valueFormatter: (params) =>
+        `${params?.value?.toLocaleString() || 0} so‘m`,
     },
     {
       field: "status",
@@ -244,17 +249,17 @@ const Payments = () => {
         <span
           style={{
             color:
-              params.value === "paid"
+              params?.value === "paid"
                 ? "green"
-                : params.value === "partial"
+                : params?.value === "partial"
                 ? "orange"
                 : "red",
             fontWeight: 600,
           }}
         >
-          {params.value === "paid"
+          {params?.value === "paid"
             ? "To‘langan"
-            : params.value === "partial"
+            : params?.value === "partial"
             ? "Qisman"
             : "To‘lanmagan"}
         </span>
@@ -264,30 +269,33 @@ const Payments = () => {
       field: "actions",
       headerName: "Amallar",
       width: 230,
-      renderCell: (params) => (
-        <Box sx={{ display: "flex", gap: 1 }}>
-          {params.row?.student_id && (
+      renderCell: (params) =>
+        params?.row ? (
+          <Box sx={{ display: "flex", gap: 1 }}>
+            {params?.row?.student_id && (
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={() => fetchHistory(params.row.student_id)}
+              >
+                Tarix
+              </Button>
+            )}
             <Button
-              variant="outlined"
+              variant="contained"
               size="small"
-              onClick={() => fetchHistory(params.row.student_id)}
+              color="success"
+              onClick={() => {
+                setSelectedPayment(params.row);
+                setOpenPayModal(true);
+              }}
             >
-              Tarix
+              To‘landi
             </Button>
-          )}
-          <Button
-            variant="contained"
-            size="small"
-            color="success"
-            onClick={() => {
-              setSelectedPayment(params.row);
-              setOpenPayModal(true);
-            }}
-          >
-            To‘landi
-          </Button>
-        </Box>
-      ),
+          </Box>
+        ) : (
+          "-"
+        ),
     },
   ];
 
