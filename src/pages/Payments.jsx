@@ -358,6 +358,9 @@ const Payments = () => {
       },
     },
   ];
+  console.log("API RESPONSE:", payments);
+  console.log("FILTERED PAYMENTS:", filteredPayments);
+  console.log("FIRST ROW:", payments[0]);
 
   return (
     <Box sx={{ p: { xs: 2, md: 4 } }}>
