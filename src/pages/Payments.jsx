@@ -5,8 +5,6 @@ import {
   Button,
   Grid,
   CircularProgress,
-  MenuItem,
-  TextField,
   Table,
   TableHead,
   TableRow,
@@ -14,99 +12,95 @@ import {
   TableBody,
   TableContainer,
   Paper,
+  Chip,
   Modal,
   FormControl,
   InputLabel,
   Select,
-  Chip,
+  MenuItem,
+  TextField,
   Stack,
+  Divider,
 } from "@mui/material";
-import {
-  DateRange,
-  Calculate,
-  Refresh,
-  FileDownload,
-} from "@mui/icons-material";
-import * as XLSX from "xlsx";
+import { Add, Refresh, Calculate, History } from "@mui/icons-material";
 import toast, { Toaster } from "react-hot-toast";
 import { api } from "../services/api";
 
-// === Helperlar ===
-const formatMonthName = (yyyyMm) => {
+const monthNames = [
+  "Yanvar",
+  "Fevral",
+  "Mart",
+  "Aprel",
+  "May",
+  "Iyun",
+  "Iyul",
+  "Avgust",
+  "Sentabr",
+  "Oktabr",
+  "Noyabr",
+  "Dekabr",
+];
+
+const formatMonth = (yyyyMm) => {
   if (!yyyyMm) return "-";
-  try {
-    const [y, m] = yyyyMm.split("-");
-    const date = new Date(`${y}-${m}-01`);
-    return date.toLocaleDateString("uz-UZ", { year: "numeric", month: "long" });
-  } catch {
-    return yyyyMm;
-  }
-};
-const formatDateTime = (iso) => {
-  if (!iso) return "-";
-  return new Date(iso).toLocaleString("uz-UZ", {
-    year: "numeric",
-    month: "short",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const [y, m] = yyyyMm.split("-");
+  return `${monthNames[parseInt(m) - 1]} ${y}`;
 };
 
-const statusColor = {
-  paid: "success",
-  partial: "warning",
-  unpaid: "error",
-};
-
-// =============================================================
 export default function Payments() {
   const [payments, setPayments] = useState([]);
   const [students, setStudents] = useState([]);
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [calcLoading, setCalcLoading] = useState(false);
 
-  const [selectedMonth, setSelectedMonth] = useState("");
-  const [showOnlyDebtors, setShowOnlyDebtors] = useState(false);
+  const [filters, setFilters] = useState({
+    student: "",
+    group: "",
+    course: "",
+  });
 
-  const [openAdd, setOpenAdd] = useState(false);
-  const [openHistory, setOpenHistory] = useState(false);
-  const [historyData, setHistoryData] = useState(null);
+  const [openModal, setOpenModal] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [studentHistory, setStudentHistory] = useState(null);
   const [form, setForm] = useState({
     student_id: "",
     group_id: "",
     amount: "",
     description: "",
-    month: "",
+    month: new Date().toISOString().slice(0, 7),
   });
+
   const [availableGroups, setAvailableGroups] = useState([]);
 
-  // ================== Fetching =====================
+  // ==================== Fetch data ====================
   const fetchPayments = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
       const res = await api.get("/payments");
-      setPayments(Array.isArray(res.data) ? res.data : []);
+      setPayments(res.data || []);
     } catch {
-      toast.error("To‘lovlarni olishda xatolik!");
+      toast.error("To‘lovlarni olishda xato!");
     } finally {
       setLoading(false);
     }
   };
+
   const fetchStudents = async () => {
     try {
       const res = await api.get("/users");
       setStudents(res.data.filter((u) => u.role === "student"));
     } catch {
-      toast.error("O‘quvchilar olinmadi");
+      toast.error("O‘quvchilar olinmadi!");
     }
   };
+
   const fetchGroups = async () => {
     try {
       const res = await api.get("/groups");
       setGroups(res.data);
     } catch {
-      toast.error("Guruhlar olinmadi");
+      toast.error("Guruhlar olinmadi!");
     }
   };
 
@@ -116,23 +110,50 @@ export default function Payments() {
     fetchGroups();
   }, []);
 
-  // ================== Filtrlash =====================
-  const filtered = payments.filter((p) => {
-    if (selectedMonth && p.month !== selectedMonth) return false;
-    if (showOnlyDebtors && p.status === "paid") return false;
+  // ==================== Talaba tarixi ====================
+  const openHistory = async (student) => {
+    setSelectedStudent(student);
+    setOpenModal(true);
+    try {
+      const res = await api.get(`/payments/student/${student.id}`);
+      setStudentHistory(res.data);
+    } catch {
+      toast.error("Tarixni olishda xato!");
+    }
+  };
+
+  // ==================== Filtrlash ====================
+  const filteredStudents = students.filter((s) => {
+    const group = groups.find((g) => g.students?.some((st) => st.id === s.id));
+    if (filters.group && group?.id !== parseInt(filters.group)) return false;
+    if (filters.course && group?.course?.id !== parseInt(filters.course))
+      return false;
+    if (
+      filters.student &&
+      !s.full_name?.toLowerCase().includes(filters.student.toLowerCase())
+    )
+      return false;
     return true;
   });
 
-  const summary = filtered.reduce(
-    (acc, p) => {
-      acc.total += p.amount || 0;
-      acc.count += 1;
-      return acc;
-    },
-    { total: 0, count: 0 }
-  );
+  // ==================== Hisoblash jadvali ====================
+  const grouped = filteredStudents.map((s) => {
+    const pays = payments.filter((p) => p.student_id === s.id);
+    const totalPaid = pays.reduce((sum, p) => sum + (p.amount || 0), 0);
+    const totalDebt = pays.reduce((sum, p) => sum + (p.debt_amount || 0), 0);
+    const balance = totalPaid - totalDebt;
+    const latestMonth = pays.length ? pays[0].month : "-";
+    return {
+      id: s.id,
+      name: s.full_name,
+      totalPaid,
+      totalDebt,
+      balance,
+      latestMonth,
+    };
+  });
 
-  // ================== Form helpers =====================
+  // ==================== To‘lov qo‘shish ====================
   useEffect(() => {
     if (!form.student_id) {
       setAvailableGroups([]);
@@ -143,21 +164,11 @@ export default function Payments() {
       g.students?.some((st) => st.id === sid)
     );
     setAvailableGroups(related);
-    if (related.length === 1) {
-      const g = related[0];
-      setForm((f) => ({
-        ...f,
-        group_id: g.id,
-        amount: g.course?.price || "",
-        description: g.course?.title || "",
-      }));
-    }
   }, [form.student_id, groups]);
 
-  // ================== Actions =====================
-  const handleAdd = async () => {
+  const handleAddPayment = async () => {
     if (!form.student_id || !form.group_id || !form.amount) {
-      toast.error("O‘quvchi, guruh va summa majburiy!");
+      toast.error("Barcha maydonlar to‘ldirilishi kerak!");
       return;
     }
     try {
@@ -166,187 +177,143 @@ export default function Payments() {
         group_id: Number(form.group_id),
         amount: Number(form.amount),
         description: form.description,
-        month: form.month || new Date().toISOString().slice(0, 7),
+        month: form.month,
       });
       toast.success("To‘lov qo‘shildi ✅");
-      setOpenAdd(false);
-      fetchPayments();
       setForm({
         student_id: "",
         group_id: "",
         amount: "",
         description: "",
-        month: "",
+        month: new Date().toISOString().slice(0, 7),
       });
+      fetchPayments();
+      if (selectedStudent) openHistory(selectedStudent);
     } catch (err) {
       toast.error(err.response?.data?.detail || "Xatolik!");
     }
   };
 
+  // ==================== Oylik qarzlarni hisoblash ====================
   const handleCalculateMonthly = async () => {
+    setCalcLoading(true);
     try {
-      const res = await api.post("/payments/calculate-monthly", {
-        month: selectedMonth || new Date().toISOString().slice(0, 7),
-      });
-      toast.success(res.data.message);
+      const month = new Date().toISOString().slice(0, 7);
+      const res = await api.post("/payments/calculate-monthly", { month });
+      toast.success(res.data.message || "Hisoblash yakunlandi ✅");
       fetchPayments();
     } catch (err) {
-      toast.error(err.response?.data?.detail || "Hisoblashda xatolik!");
+      toast.error(err.response?.data?.detail || "Hisoblashda xato!");
+    } finally {
+      setCalcLoading(false);
     }
   };
 
-  const handleCalculateCurrentMonth = async () => {
-    const thisMonth = new Date().toISOString().slice(0, 7);
-    try {
-      const res = await api.post("/payments/calculate-monthly", {
-        month: thisMonth,
-      });
-      toast.success(`📅 ${formatMonthName(thisMonth)} uchun hisob yangilandi`);
-      fetchPayments();
-    } catch (err) {
-      toast.error("Joriy oy uchun hisoblashda xatolik!");
-    }
-  };
-
-  const handleExportExcel = () => {
-    if (!filtered.length) {
-      toast.error("Ma’lumot yo‘q!");
-      return;
-    }
-    const data = filtered.map((p) => ({
-      ID: p.id,
-      "O‘quvchi": p.student?.full_name || "-",
-      Kurs: p.group?.course?.title || "-",
-      Guruh: p.group?.name || "-",
-      Oy: formatMonthName(p.month),
-      Summa: (p.amount || 0).toLocaleString() + " so‘m",
-      Qarzdorlik: (p.debt_amount || 0).toLocaleString() + " so‘m",
-      Holat: p.status,
-      Sana: formatDateTime(p.created_at),
-    }));
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "To‘lovlar");
-    XLSX.writeFile(wb, `Tolovlar_${selectedMonth || "barcha"}.xlsx`);
-  };
-
-  // ================== Render =====================
   return (
-    <Box sx={{ p: 3, bgcolor: "#f8fafc", minHeight: "100vh" }}>
+    <Box sx={{ p: 3 }}>
       <Toaster position="top-right" />
       <Typography variant="h5" fontWeight={600} mb={3}>
-        💳 To‘lovlar boshqaruvi
+        💰 To‘lovlar boshqaruvi
       </Typography>
 
-      {/* Summary */}
-      <Grid container spacing={2} mb={3}>
-        <Grid item xs={12} sm={4}>
-          <Paper sx={{ p: 2, textAlign: "center" }}>
-            <Typography variant="subtitle2">Jami yozuvlar</Typography>
-            <Typography variant="h6">{summary.count}</Typography>
-          </Paper>
+      {/* Filtrlar */}
+      <Grid container spacing={2} mb={2}>
+        <Grid item xs={12} sm={3}>
+          <TextField
+            fullWidth
+            size="small"
+            label="O‘quvchi ismi"
+            value={filters.student}
+            onChange={(e) =>
+              setFilters((f) => ({ ...f, student: e.target.value }))
+            }
+          />
         </Grid>
-        <Grid item xs={12} sm={4}>
-          <Paper sx={{ p: 2, textAlign: "center" }}>
-            <Typography variant="subtitle2">Jami summa</Typography>
-            <Typography variant="h6">
-              {summary.total.toLocaleString()} so‘m
-            </Typography>
-          </Paper>
-        </Grid>
-        <Grid item xs={12} sm={4}>
-          <Paper sx={{ p: 2, textAlign: "center" }}>
-            <Typography variant="subtitle2">Filter</Typography>
-            <TextField
-              select
-              fullWidth
-              size="small"
-              label="Oy tanlang"
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
+        <Grid item xs={12} sm={3}>
+          <FormControl fullWidth size="small">
+            <InputLabel>Guruh</InputLabel>
+            <Select
+              value={filters.group}
+              onChange={(e) =>
+                setFilters((f) => ({ ...f, group: e.target.value }))
+              }
             >
-              <MenuItem value="">Barcha</MenuItem>
-              {[...new Set(payments.map((p) => p.month))].map((m) => (
-                <MenuItem key={m} value={m}>
-                  {formatMonthName(m)}
+              <MenuItem value="">Barchasi</MenuItem>
+              {groups.map((g) => (
+                <MenuItem key={g.id} value={g.id}>
+                  {g.name}
                 </MenuItem>
               ))}
-            </TextField>
-          </Paper>
+            </Select>
+          </FormControl>
+        </Grid>
+        <Grid item xs={12} sm={3}>
+          <FormControl fullWidth size="small">
+            <InputLabel>Kurs</InputLabel>
+            <Select
+              value={filters.course}
+              onChange={(e) =>
+                setFilters((f) => ({ ...f, course: e.target.value }))
+              }
+            >
+              <MenuItem value="">Barchasi</MenuItem>
+              {groups
+                .map((g) => g.course)
+                .filter(Boolean)
+                .map((c) => (
+                  <MenuItem key={c.id} value={c.id}>
+                    {c.title}
+                  </MenuItem>
+                ))}
+            </Select>
+          </FormControl>
         </Grid>
       </Grid>
 
-      {/* Action buttons */}
-      <Stack direction="row" spacing={2} justifyContent="flex-end" mb={3}>
+      {/* Tugmalar */}
+      <Stack direction="row" spacing={2} mb={2} justifyContent="flex-end">
         <Button
           variant="outlined"
-          startIcon={<FileDownload />}
-          onClick={handleExportExcel}
+          startIcon={<Refresh />}
+          onClick={fetchPayments}
         >
-          Excel eksport
-        </Button>
-        <Button
-          variant={showOnlyDebtors ? "contained" : "outlined"}
-          color="error"
-          onClick={() => setShowOnlyDebtors(!showOnlyDebtors)}
-        >
-          Qarzdorlar
-        </Button>
-        <Button
-          variant="contained"
-          color="info"
-          startIcon={<Calculate />}
-          onClick={handleCalculateMonthly}
-        >
-          ⚙️ Barcha oyni hisoblash
+          Yangilash
         </Button>
         <Button
           variant="contained"
           color="secondary"
-          startIcon={<DateRange />}
-          onClick={handleCalculateCurrentMonth}
+          startIcon={<Calculate />}
+          onClick={handleCalculateMonthly}
+          disabled={calcLoading}
         >
-          📅 Shu oy uchun hisoblash
-        </Button>
-        <Button
-          variant="contained"
-          color="success"
-          onClick={() => setOpenAdd(true)}
-        >
-          ➕ To‘lov qo‘shish
+          {calcLoading ? "Hisoblanmoqda..." : "Oylik qarzlarni hisobla"}
         </Button>
       </Stack>
 
       {/* Jadval */}
       {loading ? (
-        <Box textAlign="center" mt={4}>
+        <Box textAlign="center" mt={5}>
           <CircularProgress />
         </Box>
-      ) : filtered.length ? (
-        <TableContainer component={Paper} sx={{ borderRadius: 3 }}>
+      ) : (
+        <TableContainer component={Paper} sx={{ borderRadius: 2 }}>
           <Table>
-            <TableHead sx={{ bgcolor: "#f3f4f6" }}>
+            <TableHead sx={{ bgcolor: "#f9fafb" }}>
               <TableRow>
-                <TableCell>
-                  <b>ID</b>
-                </TableCell>
                 <TableCell>
                   <b>O‘quvchi</b>
                 </TableCell>
                 <TableCell>
-                  <b>Kurs</b>
-                </TableCell>
-                <TableCell>
-                  <b>Guruh</b>
-                </TableCell>
-                <TableCell>
-                  <b>Oy</b>
+                  <b>So‘nggi oy</b>
                 </TableCell>
                 <TableCell align="right">
-                  <b>Summa</b>
+                  <b>To‘lov</b>
                 </TableCell>
                 <TableCell align="right">
                   <b>Qarzdorlik</b>
+                </TableCell>
+                <TableCell align="right">
+                  <b>Balans</b>
                 </TableCell>
                 <TableCell>
                   <b>Holat</b>
@@ -354,30 +321,63 @@ export default function Payments() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {filtered.map((p) => (
-                <TableRow key={p.id} hover>
-                  <TableCell>{p.id}</TableCell>
-                  <TableCell>{p.student?.full_name || "-"}</TableCell>
-                  <TableCell>{p.group?.course?.title || "-"}</TableCell>
-                  <TableCell>{p.group?.name || "-"}</TableCell>
-                  <TableCell>{formatMonthName(p.month)}</TableCell>
+              {grouped.map((s) => (
+                <TableRow
+                  key={s.id}
+                  hover
+                  sx={{ cursor: "pointer" }}
+                  onClick={() =>
+                    openHistory(students.find((st) => st.id === s.id))
+                  }
+                >
+                  <TableCell>{s.name}</TableCell>
+                  <TableCell>{formatMonth(s.latestMonth)}</TableCell>
                   <TableCell align="right">
-                    {(p.amount || 0).toLocaleString()} so‘m
+                    {s.totalPaid.toLocaleString()} so‘m
                   </TableCell>
                   <TableCell align="right">
-                    {(p.debt_amount || 0).toLocaleString()} so‘m
+                    {s.totalDebt > 0 ? (
+                      <Typography color="error">
+                        -{s.totalDebt.toLocaleString()} so‘m
+                      </Typography>
+                    ) : (
+                      "0"
+                    )}
+                  </TableCell>
+                  <TableCell align="right">
+                    {s.balance > 0 ? (
+                      <Typography color="success.main">
+                        +{s.balance.toLocaleString()} so‘m
+                      </Typography>
+                    ) : s.balance < 0 ? (
+                      <Typography color="error">
+                        {s.balance.toLocaleString()} so‘m
+                      </Typography>
+                    ) : (
+                      "0"
+                    )}
                   </TableCell>
                   <TableCell>
                     <Chip
-                      label={
-                        p.status === "paid"
-                          ? "To‘langan"
-                          : p.status === "partial"
-                          ? "Qisman"
-                          : "Qarzdor"
-                      }
-                      color={statusColor[p.status]}
                       size="small"
+                      label={
+                        s.balance > 0
+                          ? "Balansda"
+                          : s.totalDebt > 0
+                          ? "Qarzdor"
+                          : s.totalPaid > 0
+                          ? "To‘langan"
+                          : "To‘lov yo‘q"
+                      }
+                      color={
+                        s.balance > 0
+                          ? "success"
+                          : s.totalDebt > 0
+                          ? "error"
+                          : s.totalPaid > 0
+                          ? "primary"
+                          : "default"
+                      }
                     />
                   </TableCell>
                 </TableRow>
@@ -385,61 +385,98 @@ export default function Payments() {
             </TableBody>
           </Table>
         </TableContainer>
-      ) : (
-        <Typography align="center" mt={4} color="gray">
-          Ma’lumot topilmadi ☹️
-        </Typography>
       )}
 
-      {/* Modal: To‘lov qo‘shish */}
-      <Modal open={openAdd} onClose={() => setOpenAdd(false)}>
+      {/* Modal: Tarix + to‘lov qo‘shish */}
+      <Modal open={openModal} onClose={() => setOpenModal(false)}>
         <Box
           sx={{
             bgcolor: "white",
             p: 3,
             borderRadius: 2,
-            width: 420,
+            width: 520,
             mx: "auto",
-            mt: 10,
+            mt: 8,
+            maxHeight: "85vh",
+            overflowY: "auto",
           }}
         >
           <Typography variant="h6" mb={2}>
-            ➕ To‘lov qo‘shish
+            {selectedStudent?.full_name} — To‘lov tarixi
           </Typography>
-          <FormControl fullWidth size="small" sx={{ mb: 2 }}>
-            <InputLabel>O‘quvchi</InputLabel>
-            <Select
-              value={form.student_id}
-              label="O‘quvchi"
-              onChange={(e) =>
-                setForm((f) => ({ ...f, student_id: e.target.value }))
-              }
-            >
-              <MenuItem value="">Tanlang</MenuItem>
-              {students.map((s) => (
-                <MenuItem key={s.id} value={s.id}>
-                  {s.full_name || s.username}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+          <Divider sx={{ mb: 2 }} />
 
-          <FormControl fullWidth size="small" sx={{ mb: 2 }}>
+          {studentHistory ? (
+            <>
+              <Typography fontWeight={500}>
+                Jami to‘langan:{" "}
+                <b>{studentHistory.total_paid.toLocaleString()} so‘m</b>
+              </Typography>
+              <Typography fontWeight={500}>
+                Jami qarz:{" "}
+                <b style={{ color: "red" }}>
+                  {studentHistory.total_debt.toLocaleString()} so‘m
+                </b>
+              </Typography>
+              <Typography mb={2}>
+                Balans:{" "}
+                <b
+                  style={{
+                    color:
+                      studentHistory.balance > 0
+                        ? "green"
+                        : studentHistory.balance < 0
+                        ? "red"
+                        : "inherit",
+                  }}
+                >
+                  {studentHistory.balance.toLocaleString()} so‘m
+                </b>
+              </Typography>
+
+              <TableContainer component={Paper}>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Oy</TableCell>
+                      <TableCell align="right">Summa</TableCell>
+                      <TableCell align="right">Qarzdorlik</TableCell>
+                      <TableCell>Holat</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {studentHistory.history.map((h) => (
+                      <TableRow key={h.id}>
+                        <TableCell>{formatMonth(h.month)}</TableCell>
+                        <TableCell align="right">
+                          {h.amount.toLocaleString()} so‘m
+                        </TableCell>
+                        <TableCell align="right">
+                          {h.debt_amount.toLocaleString()} so‘m
+                        </TableCell>
+                        <TableCell>{h.status}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </>
+          ) : (
+            <Box textAlign="center" my={3}>
+              <CircularProgress size={24} />
+            </Box>
+          )}
+
+          <Typography variant="subtitle2" mt={3} mb={1}>
+            ➕ Yangi to‘lov
+          </Typography>
+          <FormControl fullWidth size="small" sx={{ mb: 1 }}>
             <InputLabel>Guruh</InputLabel>
             <Select
               value={form.group_id}
-              label="Guruh"
-              onChange={(e) => {
-                const g = availableGroups.find(
-                  (gr) => gr.id === e.target.value
-                );
-                setForm((f) => ({
-                  ...f,
-                  group_id: e.target.value,
-                  amount: g?.course?.price || "",
-                  description: g?.course?.title || "",
-                }));
-              }}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, group_id: e.target.value }))
+              }
             >
               <MenuItem value="">Tanlang</MenuItem>
               {availableGroups.map((g) => (
@@ -449,27 +486,21 @@ export default function Payments() {
               ))}
             </Select>
           </FormControl>
-
           <TextField
             fullWidth
             size="small"
-            label="Summa"
             type="number"
-            sx={{ mb: 2 }}
+            label="Summa (so‘m)"
+            sx={{ mb: 1 }}
             value={form.amount}
             onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
           />
-          <TextField
+          <Button
+            variant="contained"
             fullWidth
-            size="small"
-            label="Izoh"
-            sx={{ mb: 2 }}
-            value={form.description}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, description: e.target.value }))
-            }
-          />
-          <Button fullWidth variant="contained" onClick={handleAdd}>
+            startIcon={<Add />}
+            onClick={handleAddPayment}
+          >
             Saqlash
           </Button>
         </Box>

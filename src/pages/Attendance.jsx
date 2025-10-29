@@ -4,7 +4,6 @@ import {
   Card,
   CardContent,
   Typography,
-  Checkbox,
   Button,
   FormControl,
   InputLabel,
@@ -13,6 +12,7 @@ import {
   TextField,
   CircularProgress,
   Paper,
+  Grid,
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import toast, { Toaster } from "react-hot-toast";
@@ -38,6 +38,7 @@ export default function Attendance() {
   const [students, setStudents] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState("");
   const [attendance, setAttendance] = useState({});
+  const [reasons, setReasons] = useState({});
   const [loading, setLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState(
     new Date().toISOString().split("T")[0]
@@ -51,7 +52,7 @@ export default function Attendance() {
     api
       .get(`/teacher/groups/`)
       .then((res) => setGroups(res.data))
-      .catch((err) => toast.error("Guruhlarni olishda xato!"));
+      .catch(() => toast.error("Guruhlarni olishda xato!"));
   }, []);
 
   // 🔹 Guruhdagi o‘quvchilarni yuklash
@@ -61,20 +62,32 @@ export default function Attendance() {
     try {
       const res = await api.get(`/groups/${groupId}/students/`);
       setStudents(res.data);
+
+      // Har bir o‘quvchini "qatnashgan" deb boshlang‘ich belgilang
       const initial = {};
-      res.data.forEach((s) => (initial[s.id] = true));
+      const reasonInit = {};
+      res.data.forEach((s) => {
+        initial[s.id] = "present";
+        reasonInit[s.id] = "";
+      });
       setAttendance(initial);
+      setReasons(reasonInit);
       toast.success("O‘quvchilar ro‘yxati yuklandi!");
-    } catch (err) {
+    } catch {
       toast.error("O‘quvchilarni olishda xato!");
     } finally {
       setLoading(false);
     }
   };
 
-  // 🔹 Checkbox toggle
-  const handleToggle = (id) => {
-    setAttendance((prev) => ({ ...prev, [id]: !prev[id] }));
+  // 🔹 Holatni o‘zgartirish (present / absent_sababli / absent_sababsiz)
+  const handleStatusChange = (studentId, value) => {
+    setAttendance((prev) => ({ ...prev, [studentId]: value }));
+  };
+
+  // 🔹 Sababli sababini tanlash
+  const handleReasonChange = (studentId, value) => {
+    setReasons((prev) => ({ ...prev, [studentId]: value }));
   };
 
   // 🔹 Yo‘qlama saqlash
@@ -84,7 +97,13 @@ export default function Attendance() {
 
     const records = students.map((s) => ({
       student_id: s.id,
-      is_present: attendance[s.id],
+      is_present: attendance[s.id] === "present",
+      reason:
+        attendance[s.id] === "absent_sababli"
+          ? reasons[s.id] || "sababli"
+          : attendance[s.id] === "absent_sababsiz"
+          ? "sababsiz"
+          : null,
     }));
 
     try {
@@ -96,7 +115,7 @@ export default function Attendance() {
       toast.success("✅ Yo‘qlama saqlandi!");
       loadReport();
     } catch (err) {
-      toast.error("❌ Bu kunga allaqachon yo‘qlama kiritilgan!");
+      toast.error(err.response?.data?.detail || "❌ Xatolik yuz berdi!");
     }
   };
 
@@ -124,7 +143,7 @@ export default function Attendance() {
         ...reportData.day_list.map((day) => ({
           field: day,
           headerName: day,
-          width: 80,
+          width: 100,
           headerAlign: "center",
           align: "center",
         })),
@@ -137,42 +156,46 @@ export default function Attendance() {
     : [];
 
   return (
-    <Box sx={{ p: 4, bgcolor: "#f8fafc", minHeight: "100vh" }}>
+    <Box sx={{ p: 4, bgcolor: "#f9fafc", minHeight: "100vh" }}>
       <Toaster position="top-right" />
       <Typography variant="h4" gutterBottom fontWeight="bold">
         📋 Yo‘qlama tizimi
       </Typography>
 
-      {/* Guruh tanlash */}
+      {/* Guruh tanlash qismi */}
       <Paper sx={{ p: 3, mb: 4, borderRadius: 3, boxShadow: 2 }}>
-        <FormControl fullWidth sx={{ mb: 2 }}>
-          <InputLabel>Guruhni tanlang</InputLabel>
-          <Select
-            value={selectedGroup}
-            label="Guruhni tanlang"
-            onChange={(e) => {
-              setSelectedGroup(e.target.value);
-              loadStudents(e.target.value);
-            }}
-          >
-            {groups.map((g) => (
-              <MenuItem key={g.id} value={g.id}>
-                {g.name}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+        <Grid container spacing={2}>
+          <Grid item xs={12} md={6}>
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <InputLabel>Guruhni tanlang</InputLabel>
+              <Select
+                value={selectedGroup}
+                label="Guruhni tanlang"
+                onChange={(e) => {
+                  setSelectedGroup(e.target.value);
+                  loadStudents(e.target.value);
+                }}
+              >
+                {groups.map((g) => (
+                  <MenuItem key={g.id} value={g.id}>
+                    {g.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
 
-        {/* Sana tanlash */}
-        <TextField
-          type="date"
-          label="Sana"
-          value={selectedDate}
-          onChange={(e) => setSelectedDate(e.target.value)}
-          sx={{ mb: 3 }}
-          fullWidth
-          InputLabelProps={{ shrink: true }}
-        />
+          <Grid item xs={12} md={6}>
+            <TextField
+              type="date"
+              label="Sana"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              fullWidth
+              InputLabelProps={{ shrink: true }}
+            />
+          </Grid>
+        </Grid>
 
         {/* O‘quvchilar ro‘yxati */}
         {loading ? (
@@ -180,7 +203,7 @@ export default function Attendance() {
             <CircularProgress />
           </Box>
         ) : students.length > 0 ? (
-          <Box sx={{ maxHeight: 300, overflowY: "auto", mb: 2 }}>
+          <Box sx={{ maxHeight: 400, overflowY: "auto", mt: 2 }}>
             {students.map((s, idx) => (
               <Card key={s.id} sx={{ mb: 1, borderRadius: 2 }}>
                 <CardContent
@@ -188,21 +211,48 @@ export default function Attendance() {
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "center",
+                    flexWrap: "wrap",
                   }}
                 >
-                  <Typography>
+                  <Typography sx={{ width: "30%" }}>
                     {idx + 1}. {s.full_name}
                   </Typography>
-                  <Checkbox
-                    checked={attendance[s.id] || false}
-                    onChange={() => handleToggle(s.id)}
-                  />
+
+                  <FormControl sx={{ width: "35%" }}>
+                    <InputLabel>Holat</InputLabel>
+                    <Select
+                      value={attendance[s.id] || "present"}
+                      label="Holat"
+                      onChange={(e) => handleStatusChange(s.id, e.target.value)}
+                    >
+                      <MenuItem value="present">✅ Bor</MenuItem>
+                      <MenuItem value="absent_sababli">🕒 Sababli</MenuItem>
+                      <MenuItem value="absent_sababsiz">❌ Sababsiz</MenuItem>
+                    </Select>
+                  </FormControl>
+
+                  {attendance[s.id] === "absent_sababli" && (
+                    <FormControl sx={{ width: "30%" }}>
+                      <InputLabel>Sabab</InputLabel>
+                      <Select
+                        value={reasons[s.id] || ""}
+                        label="Sabab"
+                        onChange={(e) =>
+                          handleReasonChange(s.id, e.target.value)
+                        }
+                      >
+                        <MenuItem value="kasallik">Kasallik</MenuItem>
+                        <MenuItem value="safar">Safar</MenuItem>
+                        <MenuItem value="boshqa">Boshqa</MenuItem>
+                      </Select>
+                    </FormControl>
+                  )}
                 </CardContent>
               </Card>
             ))}
           </Box>
         ) : (
-          <Typography color="text.secondary">
+          <Typography color="text.secondary" sx={{ mt: 2 }}>
             O‘quvchilar hali yuklanmagan.
           </Typography>
         )}
@@ -212,7 +262,7 @@ export default function Attendance() {
             variant="contained"
             color="primary"
             fullWidth
-            sx={{ height: 50, fontWeight: 600 }}
+            sx={{ height: 50, fontWeight: 600, mt: 2 }}
             onClick={handleSubmit}
           >
             💾 Saqlash
@@ -220,7 +270,7 @@ export default function Attendance() {
         )}
       </Paper>
 
-      {/* Hisobot va oy tanlash */}
+      {/* Hisobot bo‘limi */}
       <Box
         sx={{
           display: "flex",
@@ -238,6 +288,7 @@ export default function Attendance() {
         >
           📊 Hisobot
         </Button>
+
         <FormControl sx={{ width: 180 }}>
           <InputLabel>Oy</InputLabel>
           <Select
