@@ -19,6 +19,8 @@ import {
   Select,
   MenuItem,
   TextField,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import { Add, Refresh, Calculate } from "@mui/icons-material";
 import toast, { Toaster } from "react-hot-toast";
@@ -65,6 +67,9 @@ export default function Payments() {
     amount: "",
   });
   const [availableGroups, setAvailableGroups] = useState([]);
+
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   // ================= Fetch Data =================
   const fetchAll = async () => {
@@ -177,14 +182,20 @@ export default function Payments() {
   });
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: { xs: 1.5, sm: 3 } }}>
       <Toaster position="top-right" />
-      <Typography variant="h5" fontWeight={600} mb={3}>
+      <Typography variant={isMobile ? "h6" : "h5"} fontWeight={600} mb={2}>
         💰 To‘lovlar boshqaruvi
       </Typography>
 
-      <Stack direction="row" spacing={2} mb={2}>
+      <Stack
+        direction={isMobile ? "column" : "row"}
+        spacing={2}
+        mb={2}
+        alignItems={isMobile ? "stretch" : "center"}
+      >
         <TextField
+          fullWidth={isMobile}
           type="month"
           size="small"
           label="Oy"
@@ -195,10 +206,16 @@ export default function Payments() {
           variant="contained"
           startIcon={<Calculate />}
           onClick={handleCalculateMonthly}
+          fullWidth={isMobile}
         >
           Oylik qarzlarni hisobla
         </Button>
-        <Button variant="outlined" startIcon={<Refresh />} onClick={fetchAll}>
+        <Button
+          variant="outlined"
+          startIcon={<Refresh />}
+          onClick={fetchAll}
+          fullWidth={isMobile}
+        >
           Yangilash
         </Button>
       </Stack>
@@ -210,10 +227,17 @@ export default function Payments() {
       ) : debtors.length > 0 ? (
         <>
           <Typography variant="h6" mb={1}>
-            Qarzdorlar ro‘yxati ({debtors.length} nafar)
+            Qarzdorlar ({debtors.length} nafar)
           </Typography>
-          <TableContainer component={Paper} sx={{ borderRadius: 3, mb: 4 }}>
-            <Table>
+          <TableContainer
+            component={Paper}
+            sx={{
+              borderRadius: 3,
+              mb: 4,
+              overflowX: "auto",
+            }}
+          >
+            <Table size={isMobile ? "small" : "medium"}>
               <TableHead sx={{ bgcolor: "#f3f4f6" }}>
                 <TableRow>
                   <TableCell>O‘quvchi</TableCell>
@@ -260,25 +284,21 @@ export default function Payments() {
           <Typography variant="h6" mb={1}>
             Barcha o‘quvchilar
           </Typography>
-          <TableContainer component={Paper} sx={{ borderRadius: 3 }}>
-            <Table>
+          <TableContainer
+            component={Paper}
+            sx={{
+              borderRadius: 3,
+              overflowX: "auto",
+            }}
+          >
+            <Table size={isMobile ? "small" : "medium"}>
               <TableHead sx={{ bgcolor: "#f3f4f6" }}>
                 <TableRow>
-                  <TableCell>
-                    <b>O‘quvchi</b>
-                  </TableCell>
-                  <TableCell>
-                    <b>So‘nggi oy</b>
-                  </TableCell>
-                  <TableCell align="right">
-                    <b>Jami to‘lov</b>
-                  </TableCell>
-                  <TableCell align="right">
-                    <b>Qarzdorlik</b>
-                  </TableCell>
-                  <TableCell>
-                    <b>Holat</b>
-                  </TableCell>
+                  <TableCell>O‘quvchi</TableCell>
+                  <TableCell>So‘nggi oy</TableCell>
+                  <TableCell align="right">Jami to‘lov</TableCell>
+                  <TableCell align="right">Qarzdorlik</TableCell>
+                  <TableCell>Holat</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -330,15 +350,16 @@ export default function Payments() {
         </>
       )}
 
+      {/* Modal */}
       <Modal open={openModal} onClose={() => setOpenModal(false)}>
         <Box
           sx={{
             bgcolor: "white",
             p: 3,
             borderRadius: 2,
-            width: 500,
+            width: isMobile ? "90%" : 500,
             mx: "auto",
-            mt: 10,
+            mt: isMobile ? "20%" : 10,
             maxHeight: "85vh",
             overflowY: "auto",
           }}
@@ -383,6 +404,7 @@ export default function Payments() {
           <Typography variant="subtitle2" mt={3} mb={1}>
             ➕ Yangi to‘lov qo‘shish
           </Typography>
+
           <FormControl fullWidth size="small" sx={{ mb: 1 }}>
             <InputLabel>Guruh</InputLabel>
             <Select

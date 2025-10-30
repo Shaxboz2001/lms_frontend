@@ -47,7 +47,7 @@ export default function Attendance() {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [loadingReport, setLoadingReport] = useState(false);
 
-  // 🔹 Guruhlarni yuklash
+  // 🔹 Guruhlarni olish
   useEffect(() => {
     api
       .get(`/teacher/groups/`)
@@ -55,23 +55,21 @@ export default function Attendance() {
       .catch(() => toast.error("Guruhlarni olishda xato!"));
   }, []);
 
-  // 🔹 Guruhdagi o‘quvchilarni yuklash
+  // 🔹 O‘quvchilarni yuklash
   const loadStudents = async (groupId) => {
     if (!groupId) return;
     setLoading(true);
     try {
       const res = await api.get(`/groups/${groupId}/students/`);
       setStudents(res.data);
-
-      // Har bir o‘quvchini "qatnashgan" deb boshlang‘ich belgilang
-      const initial = {};
-      const reasonInit = {};
+      const initAttendance = {},
+        initReasons = {};
       res.data.forEach((s) => {
-        initial[s.id] = "present";
-        reasonInit[s.id] = "";
+        initAttendance[s.id] = "present";
+        initReasons[s.id] = "";
       });
-      setAttendance(initial);
-      setReasons(reasonInit);
+      setAttendance(initAttendance);
+      setReasons(initReasons);
       toast.success("O‘quvchilar ro‘yxati yuklandi!");
     } catch {
       toast.error("O‘quvchilarni olishda xato!");
@@ -80,19 +78,14 @@ export default function Attendance() {
     }
   };
 
-  // 🔹 Holatni o‘zgartirish (present / absent_sababli / absent_sababsiz)
-  const handleStatusChange = (studentId, value) => {
-    setAttendance((prev) => ({ ...prev, [studentId]: value }));
-  };
-
-  // 🔹 Sababli sababini tanlash
-  const handleReasonChange = (studentId, value) => {
-    setReasons((prev) => ({ ...prev, [studentId]: value }));
-  };
+  const handleStatusChange = (id, value) =>
+    setAttendance((p) => ({ ...p, [id]: value }));
+  const handleReasonChange = (id, value) =>
+    setReasons((p) => ({ ...p, [id]: value }));
 
   // 🔹 Yo‘qlama saqlash
   const handleSubmit = async () => {
-    if (!selectedGroup) return toast.error("Iltimos guruhni tanlang!");
+    if (!selectedGroup) return toast.error("Iltimos, guruhni tanlang!");
     if (students.length === 0) return toast.error("Guruhda o‘quvchi yo‘q!");
 
     const records = students.map((s) => ({
@@ -119,9 +112,9 @@ export default function Attendance() {
     }
   };
 
-  // 🔹 Hisobot yuklash
+  // 🔹 Hisobot
   const loadReport = async () => {
-    if (!selectedGroup) return toast.error("Iltimos guruhni tanlang!");
+    if (!selectedGroup) return toast.error("Iltimos, guruhni tanlang!");
     setLoadingReport(true);
     try {
       const res = await api.get(`/attendance/report/${selectedGroup}`, {
@@ -135,38 +128,36 @@ export default function Attendance() {
     }
   };
 
-  // 🔹 DataGrid ustunlar
   const columns = reportData?.day_list
     ? [
         { field: "id", headerName: "№", width: 60 },
-        { field: "fullname", headerName: "O‘quvchi", width: 200 },
+        { field: "fullname", headerName: "O‘quvchi", flex: 1 },
         ...reportData.day_list.map((day) => ({
           field: day,
           headerName: day,
-          width: 100,
-          headerAlign: "center",
+          width: 80,
           align: "center",
+          headerAlign: "center",
         })),
       ]
     : [];
 
-  // 🔹 DataGrid qatorlar
   const rows = reportData?.rows
     ? reportData.rows.map((r, idx) => ({ id: idx + 1, ...r }))
     : [];
 
   return (
-    <Box sx={{ p: 4, bgcolor: "#f9fafc", minHeight: "100vh" }}>
+    <Box sx={{ p: { xs: 2, md: 4 }, bgcolor: "#f9fafc", minHeight: "100vh" }}>
       <Toaster position="top-right" />
-      <Typography variant="h4" gutterBottom fontWeight="bold">
+      <Typography variant="h5" fontWeight={700} mb={3}>
         📋 Yo‘qlama tizimi
       </Typography>
 
-      {/* Guruh tanlash qismi */}
-      <Paper sx={{ p: 3, mb: 4, borderRadius: 3, boxShadow: 2 }}>
+      {/* 🔹 Guruh va sana tanlash */}
+      <Paper sx={{ p: { xs: 2, md: 3 }, mb: 4, borderRadius: 3 }}>
         <Grid container spacing={2}>
           <Grid item xs={12} md={6}>
-            <FormControl fullWidth sx={{ mb: 2 }}>
+            <FormControl fullWidth size="small">
               <InputLabel>Guruhni tanlang</InputLabel>
               <Select
                 value={selectedGroup}
@@ -184,41 +175,50 @@ export default function Attendance() {
               </Select>
             </FormControl>
           </Grid>
-
           <Grid item xs={12} md={6}>
             <TextField
+              fullWidth
+              size="small"
               type="date"
               label="Sana"
+              InputLabelProps={{ shrink: true }}
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              fullWidth
-              InputLabelProps={{ shrink: true }}
             />
           </Grid>
         </Grid>
 
-        {/* O‘quvchilar ro‘yxati */}
+        {/* 🔹 O‘quvchilar ro‘yxati */}
         {loading ? (
-          <Box sx={{ display: "flex", justifyContent: "center", my: 3 }}>
+          <Box sx={{ display: "flex", justifyContent: "center", my: 4 }}>
             <CircularProgress />
           </Box>
         ) : students.length > 0 ? (
-          <Box sx={{ maxHeight: 400, overflowY: "auto", mt: 2 }}>
+          <Box sx={{ mt: 3, maxHeight: "60vh", overflowY: "auto" }}>
             {students.map((s, idx) => (
-              <Card key={s.id} sx={{ mb: 1, borderRadius: 2 }}>
+              <Card
+                key={s.id}
+                sx={{
+                  mb: 1,
+                  borderRadius: 2,
+                  boxShadow: 1,
+                  p: { xs: 1, sm: 1.5 },
+                }}
+              >
                 <CardContent
                   sx={{
                     display: "flex",
+                    flexWrap: "wrap",
                     justifyContent: "space-between",
                     alignItems: "center",
-                    flexWrap: "wrap",
+                    gap: 1,
                   }}
                 >
-                  <Typography sx={{ width: "30%" }}>
+                  <Typography sx={{ flex: "1 1 100px" }}>
                     {idx + 1}. {s.full_name}
                   </Typography>
 
-                  <FormControl sx={{ width: "35%" }}>
+                  <FormControl sx={{ flex: "1 1 150px" }} size="small">
                     <InputLabel>Holat</InputLabel>
                     <Select
                       value={attendance[s.id] || "present"}
@@ -232,7 +232,7 @@ export default function Attendance() {
                   </FormControl>
 
                   {attendance[s.id] === "absent_sababli" && (
-                    <FormControl sx={{ width: "30%" }}>
+                    <FormControl sx={{ flex: "1 1 150px" }} size="small">
                       <InputLabel>Sabab</InputLabel>
                       <Select
                         value={reasons[s.id] || ""}
@@ -252,17 +252,21 @@ export default function Attendance() {
             ))}
           </Box>
         ) : (
-          <Typography color="text.secondary" sx={{ mt: 2 }}>
+          <Typography sx={{ mt: 2 }} color="text.secondary">
             O‘quvchilar hali yuklanmagan.
           </Typography>
         )}
 
         {students.length > 0 && (
           <Button
-            variant="contained"
-            color="primary"
             fullWidth
-            sx={{ height: 50, fontWeight: 600, mt: 2 }}
+            variant="contained"
+            sx={{
+              mt: 3,
+              py: 1.3,
+              fontWeight: 600,
+              fontSize: "1rem",
+            }}
             onClick={handleSubmit}
           >
             💾 Saqlash
@@ -270,48 +274,47 @@ export default function Attendance() {
         )}
       </Paper>
 
-      {/* Hisobot bo‘limi */}
+      {/* 🔹 Hisobot */}
       <Box
         sx={{
           display: "flex",
-          alignItems: "center",
+          flexWrap: "wrap",
           gap: 2,
           mb: 3,
-          flexWrap: "wrap",
+          alignItems: "center",
         }}
       >
-        <Button
-          variant="outlined"
-          color="secondary"
-          onClick={loadReport}
-          sx={{ height: 45 }}
-        >
-          📊 Hisobot
-        </Button>
-
-        <FormControl sx={{ width: 180 }}>
+        <FormControl sx={{ width: { xs: "100%", sm: 200 } }} size="small">
           <InputLabel>Oy</InputLabel>
           <Select
             value={selectedMonth}
             onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
             label="Oy"
           >
-            {monthNames.map((name, i) => (
+            {monthNames.map((m, i) => (
               <MenuItem key={i} value={i + 1}>
-                {name}
+                {m}
               </MenuItem>
             ))}
           </Select>
         </FormControl>
+
+        <Button
+          variant="outlined"
+          onClick={loadReport}
+          sx={{ height: 40, px: 3 }}
+        >
+          📊 Hisobotni ko‘rish
+        </Button>
       </Box>
 
-      {/* Hisobot jadvali */}
+      {/* 🔹 Hisobot jadvali */}
       {loadingReport ? (
-        <Box sx={{ display: "flex", justifyContent: "center", my: 3 }}>
+        <Box sx={{ display: "flex", justifyContent: "center", my: 4 }}>
           <CircularProgress />
         </Box>
       ) : reportData && reportData.rows?.length > 0 ? (
-        <Paper sx={{ p: 2, borderRadius: 3 }}>
+        <Paper sx={{ p: { xs: 1.5, md: 2 }, borderRadius: 3 }}>
           <Typography variant="h6" sx={{ mb: 2 }}>
             📅 {monthNames[selectedMonth - 1]} hisobot
           </Typography>
@@ -322,12 +325,13 @@ export default function Attendance() {
             rowsPerPageOptions={[10, 20, 50]}
             disableSelectionOnClick
             autoHeight
+            sx={{
+              "& .MuiDataGrid-columnHeaders": { backgroundColor: "#f3f4f6" },
+            }}
           />
         </Paper>
       ) : (
-        <Typography color="text.secondary" sx={{ mt: 2 }}>
-          Hozircha hisobot ma’lumotlari yo‘q.
-        </Typography>
+        <Typography color="text.secondary">Hisobot topilmadi.</Typography>
       )}
     </Box>
   );
