@@ -1,3 +1,4 @@
+// src/pages/TestPage.js
 import React, { useEffect, useState } from "react";
 import {
   Box,
@@ -21,17 +22,13 @@ import {
   DialogContent,
   DialogActions,
   Chip,
-  List,
-  ListItem,
-  ListItemText,
-  IconButton,
 } from "@mui/material";
 import { api } from "../services/api";
 import toast, { Toaster } from "react-hot-toast";
 import HistoryIcon from "@mui/icons-material/History";
 
 export default function TestPage() {
-  const [role, setRole] = useState("");
+  const [role, setRole] = useState(localStorage.getItem("role"));
   const [tests, setTests] = useState([]);
   const [groups, setGroups] = useState([]);
   const [newTest, setNewTest] = useState({
@@ -44,23 +41,15 @@ export default function TestPage() {
   ]);
   const [selectedTest, setSelectedTest] = useState(null);
   const [answers, setAnswers] = useState({});
+  const [confirmSubmit, setConfirmSubmit] = useState(false);
   const [result, setResult] = useState(null);
-  const [submitted, setSubmitted] = useState(false);
-  const [testResults, setTestResults] = useState([]);
-  const [testTitle, setTestTitle] = useState("");
+  const [attempts, setAttempts] = useState([]);
+  const [attemptsOpen, setAttemptsOpen] = useState(false);
+  const [loadingAttempts, setLoadingAttempts] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailedResult, setDetailedResult] = useState(null);
-  const [confirmSubmit, setConfirmSubmit] = useState(false);
 
-  // new states for student attempts
-  const [attemptsOpen, setAttemptsOpen] = useState(false);
-  const [attempts, setAttempts] = useState([]);
-  const [loadingAttempts, setLoadingAttempts] = useState(false);
-
-  const userRole = localStorage.getItem("role");
   const userId = localStorage.getItem("userId");
-
-  useEffect(() => setRole(userRole), []);
 
   // 🔹 Ma'lumotlarni yuklash
   useEffect(() => {
@@ -73,7 +62,7 @@ export default function TestPage() {
         const resTests = await api.get(`/tests`);
         setTests(resTests.data);
       } catch {
-        toast.error("Ma’lumotlarni olishda xatolik!");
+        toast.error("❌ Ma’lumotlarni yuklashda xato!");
       }
     };
     fetchData();
@@ -94,9 +83,12 @@ export default function TestPage() {
 
   // ✅ Test yaratish (teacher)
   const createTest = async () => {
+    if (!newTest.title || !newTest.group_id) {
+      toast.error("Iltimos, test nomi va guruhni tanlang!");
+      return;
+    }
     try {
-      const payload = { ...newTest, questions };
-      await api.post(`/tests/`, payload);
+      await api.post(`/tests/`, { ...newTest, questions });
       toast.success("✅ Test yaratildi!");
       setNewTest({ title: "", description: "", group_id: "" });
       setQuestions([{ text: "", options: [{ text: "", is_correct: 0 }] }]);
@@ -112,41 +104,14 @@ export default function TestPage() {
     try {
       const res = await api.get(`/tests/${testId}`);
       setSelectedTest(res.data);
-      setSubmitted(false);
       setResult(null);
+      setAnswers({});
     } catch {
       toast.error("Testni yuklashda xato!");
     }
   };
 
-  // ✅ Natijalarni ko‘rish (teacher)
-  const handleViewResults = async (testId) => {
-    try {
-      const res = await api.get(`/tests/${testId}/results`);
-      setTestTitle(res.data.test_name);
-      setTestResults(res.data.results || []);
-      setSelectedTest({ id: testId });
-    } catch {
-      toast.error("Natijalarni olishda xatolik!");
-    }
-  };
-
-  // ✅ Batafsil natijani olish
-  const handleViewDetailed = async (testId, studentId, submitted_at = null) => {
-    try {
-      let url = `/tests/${testId}/detailed_result/${studentId}`;
-      if (submitted_at) {
-        url += `?submitted_at=${encodeURIComponent(submitted_at)}`;
-      }
-      const res = await api.get(url);
-      setDetailedResult(res.data);
-      setDetailOpen(true);
-    } catch {
-      toast.error("Batafsil natijani olishda xatolik!");
-    }
-  };
-
-  // ✅ Avvalgi urinishlarni olish
+  // ✅ Avvalgi urinishlarni ko‘rish
   const handleViewAttempts = async (testId) => {
     setLoadingAttempts(true);
     try {
@@ -160,10 +125,23 @@ export default function TestPage() {
     }
   };
 
-  // ✅ Javobni tanlash
-  const handleAnswerChange = (qId, optId) => {
-    setAnswers({ ...answers, [qId]: optId });
+  // ✅ Batafsil natija
+  const handleViewDetailed = async (testId, studentId, submitted_at = null) => {
+    try {
+      let url = `/tests/${testId}/detailed_result/${studentId}`;
+      if (submitted_at)
+        url += `?submitted_at=${encodeURIComponent(submitted_at)}`;
+      const res = await api.get(url);
+      setDetailedResult(res.data);
+      setDetailOpen(true);
+    } catch {
+      toast.error("❌ Batafsil natijani olishda xatolik!");
+    }
   };
+
+  // ✅ Javobni tanlash
+  const handleAnswerChange = (qId, optId) =>
+    setAnswers({ ...answers, [qId]: optId });
 
   // ✅ Testni yuborish
   const submitTest = async () => {
@@ -173,12 +151,11 @@ export default function TestPage() {
         option_id: parseInt(answers[qId]),
       })),
     };
-
     try {
       const res = await api.post(`/tests/${selectedTest.id}/submit`, payload);
       setResult(res.data);
-      setSubmitted(true);
       toast.success("✅ Test yuborildi!");
+      setSelectedTest(null);
     } catch {
       toast.error("❌ Testni yuborishda xatolik!");
     }
@@ -212,7 +189,6 @@ export default function TestPage() {
               setNewTest({ ...newTest, description: e.target.value })
             }
           />
-
           <FormControl fullWidth margin="normal">
             <InputLabel>Guruh</InputLabel>
             <Select
@@ -232,13 +208,7 @@ export default function TestPage() {
           {questions.map((q, qIndex) => (
             <Box
               key={qIndex}
-              sx={{
-                border: "1px solid #ddd",
-                borderRadius: 2,
-                p: 2,
-                mt: 2,
-                bgcolor: "#fff",
-              }}
+              sx={{ border: "1px solid #ddd", borderRadius: 2, p: 2, mt: 2 }}
             >
               <TextField
                 fullWidth
@@ -251,7 +221,7 @@ export default function TestPage() {
                 }}
               />
               {q.options.map((opt, oIndex) => (
-                <Box key={oIndex} sx={{ display: "flex", mt: 1, gap: 2 }}>
+                <Box key={oIndex} sx={{ display: "flex", gap: 2, mt: 1 }}>
                   <TextField
                     label={`Variant ${oIndex + 1}`}
                     value={opt.text}
@@ -303,13 +273,11 @@ export default function TestPage() {
           <Card
             key={t.id}
             sx={{
-              border: "1px solid #ddd",
-              borderRadius: 2,
               mb: 2,
-              cursor: "pointer",
-              "&:hover": { boxShadow: 3 },
+              p: 2,
+              "&:hover": { boxShadow: 3, cursor: "pointer" },
             }}
-            onClick={() => handleViewResults(t.id)}
+            onClick={() => handleViewDetailed(t.id, userId)}
           >
             <CardContent>
               <Typography variant="h6">{t.title}</Typography>
@@ -332,7 +300,7 @@ export default function TestPage() {
       </Typography>
 
       {!selectedTest ? (
-        <Box>
+        <>
           {tests.length === 0 ? (
             <Typography color="text.secondary">
               Hozircha testlar mavjud emas
@@ -349,12 +317,7 @@ export default function TestPage() {
                     {t.description}
                   </Typography>
                   <Box
-                    sx={{
-                      mt: 2,
-                      display: "flex",
-                      flexWrap: "wrap",
-                      gap: 2,
-                    }}
+                    sx={{ mt: 2, display: "flex", flexWrap: "wrap", gap: 2 }}
                   >
                     <Button
                       variant="contained"
@@ -374,7 +337,7 @@ export default function TestPage() {
               </Card>
             ))
           )}
-        </Box>
+        </>
       ) : (
         <Paper sx={{ p: 3 }}>
           <Typography variant="h5" sx={{ mb: 2, fontWeight: "bold" }}>
@@ -417,9 +380,7 @@ export default function TestPage() {
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle sx={{ fontWeight: "bold", fontSize: "1.2rem" }}>
-          📜 Avvalgi natijalar
-        </DialogTitle>
+        <DialogTitle>📜 Avvalgi natijalar</DialogTitle>
         <DialogContent dividers>
           {loadingAttempts ? (
             <Typography>Yuklanmoqda...</Typography>
@@ -431,67 +392,46 @@ export default function TestPage() {
               Siz hali bu testni yechmagansiz
             </Typography>
           ) : (
-            <Box>
-              {attempts.map((a, i) => {
-                const percentage = Math.round((a.score / a.total) * 100);
-                return (
-                  <Card
-                    key={i}
-                    sx={{
-                      mb: 2,
-                      p: 2,
-                      borderRadius: 2,
-                      cursor: "pointer",
-                      transition: "0.3s",
-                      "&:hover": {
-                        boxShadow: 4,
-                        transform: "scale(1.02)",
-                        bgcolor: "#f5faff",
-                      },
-                    }}
-                    onClick={() => {
-                      handleViewDetailed(
-                        tests.find((t) => t.id)?.id,
-                        parseInt(userId),
-                        a.submitted_at
-                      );
-                      setAttemptsOpen(false);
-                    }}
+            attempts.map((a, i) => {
+              const percentage = Math.round((a.score / a.total) * 100);
+              return (
+                <Card
+                  key={i}
+                  sx={{
+                    mb: 2,
+                    p: 2,
+                    borderRadius: 2,
+                    cursor: "pointer",
+                    "&:hover": { boxShadow: 4, transform: "scale(1.02)" },
+                  }}
+                  onClick={() => {
+                    handleViewDetailed(
+                      selectedTest?.id || a.test_id,
+                      parseInt(userId),
+                      a.submitted_at
+                    );
+                    setAttemptsOpen(false);
+                  }}
+                >
+                  <Typography fontWeight="bold">🧮 Urinish {i + 1}</Typography>
+                  <Typography sx={{ mt: 0.5 }}>
+                    Ball: <b>{a.score}</b> / {a.total} ({percentage}%)
+                  </Typography>
+                  <LinearProgress
+                    variant="determinate"
+                    value={percentage}
+                    sx={{ mt: 1, height: 8 }}
+                  />
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mt: 1 }}
                   >
-                    <Typography variant="subtitle1" fontWeight="bold">
-                      🧮 Urinish {i + 1}
-                    </Typography>
-                    <Typography sx={{ mt: 0.5 }}>
-                      Ball: <b>{a.score}</b> / {a.total} ({percentage}%)
-                    </Typography>
-                    <LinearProgress
-                      variant="determinate"
-                      value={percentage}
-                      sx={{
-                        mt: 1,
-                        height: 8,
-                        borderRadius: 1,
-                        "& .MuiLinearProgress-bar": {
-                          bgcolor:
-                            percentage >= 80
-                              ? "success.main"
-                              : percentage >= 50
-                              ? "warning.main"
-                              : "error.main",
-                        },
-                      }}
-                    />
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{ mt: 1 }}
-                    >
-                      📅 {a.submitted_at}
-                    </Typography>
-                  </Card>
-                );
-              })}
-            </Box>
+                    📅 {a.submitted_at}
+                  </Typography>
+                </Card>
+              );
+            })
           )}
         </DialogContent>
         <DialogActions>
