@@ -1,3 +1,4 @@
+// src/pages/Payments.js
 import React, { useEffect, useState } from "react";
 import {
   Box,
@@ -22,7 +23,7 @@ import {
   useMediaQuery,
   useTheme,
 } from "@mui/material";
-import { Add, Refresh, Calculate } from "@mui/icons-material";
+import { Add, Refresh, Calculate, FilterList } from "@mui/icons-material";
 import toast, { Toaster } from "react-hot-toast";
 import { api } from "../services/api";
 
@@ -52,10 +53,16 @@ export default function Payments() {
   const [students, setStudents] = useState([]);
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [debtors, setDebtors] = useState([]);
   const [filterMonth, setFilterMonth] = useState(
     new Date().toISOString().slice(0, 7)
   );
-  const [debtors, setDebtors] = useState([]);
+  const [filters, setFilters] = useState({
+    student: "",
+    group: "",
+    course: "",
+    month: "",
+  });
 
   const [openModal, setOpenModal] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
@@ -170,8 +177,24 @@ export default function Payments() {
     }
   };
 
+  // ================= Filtering =================
+  const filteredPayments = payments.filter((p) => {
+    const studentName = p.student?.full_name?.toLowerCase() || "";
+    const groupName = p.group?.name?.toLowerCase() || "";
+    const courseName = p.group?.course?.title?.toLowerCase() || "";
+    const month = p.month || "";
+
+    return (
+      (!filters.student ||
+        studentName.includes(filters.student.toLowerCase())) &&
+      (!filters.group || groupName.includes(filters.group.toLowerCase())) &&
+      (!filters.course || courseName.includes(filters.course.toLowerCase())) &&
+      (!filters.month || month === filters.month)
+    );
+  });
+
   const grouped = students.map((s) => {
-    const studentPays = payments.filter((p) => p.student?.id === s.id);
+    const studentPays = filteredPayments.filter((p) => p.student?.id === s.id);
     const totalPaid = studentPays.reduce((sum, p) => sum + (p.amount || 0), 0);
     const totalDebt = studentPays.reduce(
       (sum, p) => sum + (p.debt_amount || 0),
@@ -181,6 +204,7 @@ export default function Payments() {
     return { id: s.id, name: s.full_name, totalPaid, totalDebt, latestMonth };
   });
 
+  // ================= UI =================
   return (
     <Box sx={{ p: { xs: 1.5, sm: 3 } }}>
       <Toaster position="top-right" />
@@ -188,6 +212,45 @@ export default function Payments() {
         💰 To‘lovlar boshqaruvi
       </Typography>
 
+      {/* Filter inputs */}
+      <Stack direction="row" spacing={2} flexWrap="wrap" mb={2}>
+        <TextField
+          label="O‘quvchi (ism)"
+          size="small"
+          value={filters.student}
+          onChange={(e) => setFilters({ ...filters, student: e.target.value })}
+        />
+        <TextField
+          label="Guruh"
+          size="small"
+          value={filters.group}
+          onChange={(e) => setFilters({ ...filters, group: e.target.value })}
+        />
+        <TextField
+          label="Kurs"
+          size="small"
+          value={filters.course}
+          onChange={(e) => setFilters({ ...filters, course: e.target.value })}
+        />
+        <TextField
+          type="month"
+          size="small"
+          label="Oy"
+          value={filters.month}
+          onChange={(e) => setFilters({ ...filters, month: e.target.value })}
+        />
+        <Button
+          variant="outlined"
+          startIcon={<FilterList />}
+          onClick={() =>
+            setFilters({ student: "", group: "", course: "", month: "" })
+          }
+        >
+          Tozalash
+        </Button>
+      </Stack>
+
+      {/* Calculate and refresh */}
       <Stack
         direction={isMobile ? "column" : "row"}
         spacing={2}
@@ -220,77 +283,57 @@ export default function Payments() {
         </Button>
       </Stack>
 
+      {/* Loading */}
       {loading ? (
         <Box textAlign="center" mt={4}>
           <CircularProgress />
         </Box>
-      ) : debtors.length > 0 ? (
-        <>
-          <Typography variant="h6" mb={1}>
-            Qarzdorlar ({debtors.length} nafar)
-          </Typography>
-          <TableContainer
-            component={Paper}
-            sx={{
-              borderRadius: 3,
-              mb: 4,
-              overflowX: "auto",
-            }}
-          >
-            <Table size={isMobile ? "small" : "medium"}>
-              <TableHead sx={{ bgcolor: "#f3f4f6" }}>
-                <TableRow>
-                  <TableCell>O‘quvchi</TableCell>
-                  <TableCell>Guruh</TableCell>
-                  <TableCell>Kurs</TableCell>
-                  <TableCell align="right">Oylik to‘lov</TableCell>
-                  <TableCell align="right">Avvalgi qarz</TableCell>
-                  <TableCell align="right">Umumiy qarz</TableCell>
-                  <TableCell>Holat</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {debtors.map((d, i) => (
-                  <TableRow key={i} hover>
-                    <TableCell>{d.student_name}</TableCell>
-                    <TableCell>{d.group_name}</TableCell>
-                    <TableCell>{d.course_name}</TableCell>
-                    <TableCell align="right">
-                      {d.monthly_due.toLocaleString()} so‘m
-                    </TableCell>
-                    <TableCell align="right">
-                      {d.previous_debt.toLocaleString()} so‘m
-                    </TableCell>
-                    <TableCell align="right">
-                      <Typography color="error">
-                        {d.debt_amount.toLocaleString()} so‘m
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        size="small"
-                        label={d.status === "paid" ? "To‘langan" : "Qarzdor"}
-                        color={d.status === "paid" ? "success" : "error"}
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </>
       ) : (
         <>
+          {/* Qarzdorlar jadvali */}
+          {debtors.length > 0 && (
+            <>
+              <Typography variant="h6" mb={1}>
+                ⚠️ Qarzdorlar ({debtors.length} nafar)
+              </Typography>
+              <TableContainer component={Paper} sx={{ borderRadius: 3, mb: 4 }}>
+                <Table size={isMobile ? "small" : "medium"}>
+                  <TableHead sx={{ bgcolor: "#f3f4f6" }}>
+                    <TableRow>
+                      <TableCell>O‘quvchi</TableCell>
+                      <TableCell>Guruh</TableCell>
+                      <TableCell>Kurs</TableCell>
+                      <TableCell align="right">Umumiy qarz</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {debtors.map((d, i) => (
+                      <TableRow
+                        key={i}
+                        sx={{
+                          bgcolor: "#ffe5e5",
+                          "&:hover": { bgcolor: "#ffd6d6" },
+                        }}
+                      >
+                        <TableCell>{d.student_name}</TableCell>
+                        <TableCell>{d.group_name}</TableCell>
+                        <TableCell>{d.course_name}</TableCell>
+                        <TableCell align="right" sx={{ color: "red" }}>
+                          {d.debt_amount.toLocaleString()} so‘m
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </>
+          )}
+
+          {/* To‘lovlar jadvali */}
           <Typography variant="h6" mb={1}>
-            Barcha o‘quvchilar
+            📋 Barcha to‘lovlar
           </Typography>
-          <TableContainer
-            component={Paper}
-            sx={{
-              borderRadius: 3,
-              overflowX: "auto",
-            }}
-          >
+          <TableContainer component={Paper} sx={{ borderRadius: 3 }}>
             <Table size={isMobile ? "small" : "medium"}>
               <TableHead sx={{ bgcolor: "#f3f4f6" }}>
                 <TableRow>
@@ -306,7 +349,13 @@ export default function Payments() {
                   <TableRow
                     key={s.id}
                     hover
-                    sx={{ cursor: "pointer" }}
+                    sx={{
+                      cursor: "pointer",
+                      bgcolor: s.totalDebt > 0 ? "#fff0f0" : "inherit",
+                      "&:hover": {
+                        bgcolor: s.totalDebt > 0 ? "#ffe5e5" : "#f9f9f9",
+                      },
+                    }}
                     onClick={() => openHistory(s)}
                   >
                     <TableCell>{s.name}</TableCell>
@@ -381,12 +430,17 @@ export default function Payments() {
                 </TableHead>
                 <TableBody>
                   {studentHistory.map((h, i) => (
-                    <TableRow key={i}>
+                    <TableRow
+                      key={i}
+                      sx={{
+                        bgcolor: h.debt_amount > 0 ? "#ffe5e5" : "inherit",
+                      }}
+                    >
                       <TableCell>{formatMonth(h.month)}</TableCell>
                       <TableCell align="right">
                         {h.amount.toLocaleString()} so‘m
                       </TableCell>
-                      <TableCell align="right">
+                      <TableCell align="right" sx={{ color: "red" }}>
                         {h.debt_amount?.toLocaleString()} so‘m
                       </TableCell>
                       <TableCell>{h.status}</TableCell>
@@ -401,6 +455,7 @@ export default function Payments() {
             </Typography>
           )}
 
+          {/* Add new payment */}
           <Typography variant="subtitle2" mt={3} mb={1}>
             ➕ Yangi to‘lov qo‘shish
           </Typography>
