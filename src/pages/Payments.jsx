@@ -22,10 +22,18 @@ import {
   TextField,
   useMediaQuery,
   useTheme,
+  Divider,
 } from "@mui/material";
-import { Add, Refresh, Calculate, FilterList } from "@mui/icons-material";
+import {
+  Add,
+  Refresh,
+  FilterList,
+  Calculate,
+  Download,
+} from "@mui/icons-material";
 import toast, { Toaster } from "react-hot-toast";
 import { api } from "../services/api";
+import * as XLSX from "xlsx";
 
 const monthNames = [
   "Yanvar",
@@ -41,19 +49,24 @@ const monthNames = [
   "Noyabr",
   "Dekabr",
 ];
-
 const formatMonth = (yyyyMm) => {
   if (!yyyyMm) return "-";
   const [y, m] = yyyyMm.split("-");
   return `${monthNames[parseInt(m) - 1]} ${y}`;
 };
+const money = (v) => Number(v || 0).toLocaleString();
 
 export default function Payments() {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+
   const [payments, setPayments] = useState([]);
   const [students, setStudents] = useState([]);
   const [groups, setGroups] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [courses, setCourses] = useState([]);
   const [debtors, setDebtors] = useState([]);
+  const [loading, setLoading] = useState(false);
+
   const [filterMonth, setFilterMonth] = useState(
     new Date().toISOString().slice(0, 7)
   );
@@ -67,29 +80,28 @@ export default function Payments() {
   const [openModal, setOpenModal] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [studentHistory, setStudentHistory] = useState([]);
-  const [form, setForm] = useState({
+  const [availableGroups, setAvailableGroups] = useState([]);
+  const [payForm, setPayForm] = useState({
     student_id: "",
     group_id: "",
     month: filterMonth,
     amount: "",
   });
-  const [availableGroups, setAvailableGroups] = useState([]);
 
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-
-  // ================= Fetch Data =================
+  // ================= Fetch All =================
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const [pRes, sRes, gRes] = await Promise.all([
+      const [pRes, sRes, gRes, cRes] = await Promise.all([
         api.get("/payments"),
         api.get("/users"),
         api.get("/groups"),
+        api.get("/courses"),
       ]);
       setPayments(pRes.data || []);
       setStudents(sRes.data.filter((u) => u.role === "student"));
-      setGroups(gRes.data);
+      setGroups(gRes.data || []);
+      setCourses(cRes.data || []);
     } catch {
       toast.error("Ma'lumotlarni olishda xato!");
     } finally {
@@ -108,8 +120,9 @@ export default function Payments() {
       const res = await api.post("/payments/calculate-monthly", {
         month: filterMonth,
       });
-      toast.success(res.data.message);
+      toast.success(res.data.message || "Hisoblash yakunlandi!");
       setDebtors(res.data.debtors || []);
+      fetchAll();
     } catch (err) {
       toast.error(err.response?.data?.detail || "Hisoblashda xato!");
     } finally {
@@ -117,31 +130,52 @@ export default function Payments() {
     }
   };
 
+  // ================= Export Excel =================
+  const exportToExcel = () => {
+    if (debtors.length === 0) return toast.error("Qarzdorlar mavjud emas!");
+    const ws = XLSX.utils.json_to_sheet(
+      debtors.map((d) => ({
+        "O‘quvchi": d.student_name,
+        Guruh: d.group_name,
+        Kurs: d.course_name,
+        Qarzdorlik: d.debt_amount,
+      }))
+    );
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Qarzdorlar");
+    XLSX.writeFile(wb, `qarzdorlar_${filterMonth}.xlsx`);
+    toast.success("Excel fayl yuklab olindi ✅");
+  };
+
   // ================= Student History =================
   const openHistory = async (student) => {
     setSelectedStudent(student);
     setOpenModal(true);
     setStudentHistory([]);
-    setForm({
+    setPayForm({
       student_id: student.id,
       group_id: "",
       month: filterMonth,
       amount: "",
     });
+
     try {
       const res = await api.get(`/payments/student/${student.id}`);
       setStudentHistory(res.data.history || []);
+
       const related = groups.filter((g) =>
         g.students?.some((st) => st.id === student.id)
       );
       setAvailableGroups(related);
+
       if (related.length === 1) {
         const g = related[0];
-        setForm((f) => ({
-          ...f,
+        setPayForm({
+          student_id: student.id,
           group_id: g.id,
+          month: filterMonth,
           amount: g.course?.price || "",
-        }));
+        });
       }
     } catch {
       toast.error("To‘lov tarixi olinmadi!");
@@ -150,7 +184,7 @@ export default function Payments() {
 
   const handleGroupChange = (groupId) => {
     const g = groups.find((gr) => gr.id === Number(groupId));
-    setForm((f) => ({
+    setPayForm((f) => ({
       ...f,
       group_id: groupId,
       amount: g?.course?.price || "",
@@ -158,16 +192,14 @@ export default function Payments() {
   };
 
   const handleAddPayment = async () => {
-    if (!form.student_id || !form.group_id || !form.amount) {
-      toast.error("Barcha maydonlarni to‘ldiring!");
-      return;
-    }
+    if (!payForm.student_id || !payForm.group_id || !payForm.amount)
+      return toast.error("Barcha maydonlarni to‘ldiring!");
     try {
       await api.post("/payments", {
-        student_id: Number(form.student_id),
-        group_id: Number(form.group_id),
-        amount: Number(form.amount),
-        month: form.month,
+        student_id: Number(payForm.student_id),
+        group_id: Number(payForm.group_id),
+        amount: Number(payForm.amount),
+        month: payForm.month,
       });
       toast.success("To‘lov qo‘shildi ✅");
       fetchAll();
@@ -177,7 +209,7 @@ export default function Payments() {
     }
   };
 
-  // ================= Filtering =================
+  // ================= Filtering (frontend) =================
   const filteredPayments = payments.filter((p) => {
     const studentName = p.student?.full_name?.toLowerCase() || "";
     const groupName = p.group?.name?.toLowerCase() || "";
@@ -193,7 +225,33 @@ export default function Payments() {
     );
   });
 
-  const grouped = students.map((s) => {
+  // 🔍 Student filtering by group/course
+  const filteredStudents = students.filter((s) => {
+    const fullName = s.full_name.toLowerCase();
+    const studentGroups = groups.filter((g) =>
+      g.students?.some((st) => st.id === s.id)
+    );
+    const studentCourses = studentGroups.map(
+      (g) => g.course?.title?.toLowerCase() || ""
+    );
+
+    const matchName =
+      !filters.student || fullName.includes(filters.student.toLowerCase());
+    const matchGroup =
+      !filters.group ||
+      studentGroups.some((g) =>
+        g.name.toLowerCase().includes(filters.group.toLowerCase())
+      );
+    const matchCourse =
+      !filters.course ||
+      studentCourses.some((title) =>
+        title.includes(filters.course.toLowerCase())
+      );
+
+    return matchName && matchGroup && matchCourse;
+  });
+
+  const grouped = filteredStudents.map((s) => {
     const studentPays = filteredPayments.filter((p) => p.student?.id === s.id);
     const totalPaid = studentPays.reduce((sum, p) => sum + (p.amount || 0), 0);
     const totalDebt = studentPays.reduce(
@@ -212,33 +270,57 @@ export default function Payments() {
         💰 To‘lovlar boshqaruvi
       </Typography>
 
-      {/* Filter inputs */}
+      {/* Filtrlar */}
       <Stack direction="row" spacing={2} flexWrap="wrap" mb={2}>
         <TextField
-          label="O‘quvchi (ism)"
+          label="O‘quvchi"
           size="small"
           value={filters.student}
           onChange={(e) => setFilters({ ...filters, student: e.target.value })}
+          sx={{ minWidth: 180 }}
         />
-        <TextField
-          label="Guruh"
-          size="small"
-          value={filters.group}
-          onChange={(e) => setFilters({ ...filters, group: e.target.value })}
-        />
-        <TextField
-          label="Kurs"
-          size="small"
-          value={filters.course}
-          onChange={(e) => setFilters({ ...filters, course: e.target.value })}
-        />
+
+        <FormControl size="small" sx={{ minWidth: 180 }}>
+          <InputLabel>Kurs</InputLabel>
+          <Select
+            value={filters.course}
+            onChange={(e) => setFilters({ ...filters, course: e.target.value })}
+            label="Kurs"
+          >
+            <MenuItem value="">Barchasi</MenuItem>
+            {courses.map((c) => (
+              <MenuItem key={c.id} value={c.title}>
+                {c.title}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+
+        <FormControl size="small" sx={{ minWidth: 180 }}>
+          <InputLabel>Guruh</InputLabel>
+          <Select
+            value={filters.group}
+            onChange={(e) => setFilters({ ...filters, group: e.target.value })}
+            label="Guruh"
+          >
+            <MenuItem value="">Barchasi</MenuItem>
+            {groups.map((g) => (
+              <MenuItem key={g.id} value={g.name}>
+                {g.name} ({g.course?.title})
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+
         <TextField
           type="month"
           size="small"
           label="Oy"
           value={filters.month}
           onChange={(e) => setFilters({ ...filters, month: e.target.value })}
+          sx={{ minWidth: 160 }}
         />
+
         <Button
           variant="outlined"
           startIcon={<FilterList />}
@@ -250,15 +332,9 @@ export default function Payments() {
         </Button>
       </Stack>
 
-      {/* Calculate and refresh */}
-      <Stack
-        direction={isMobile ? "column" : "row"}
-        spacing={2}
-        mb={2}
-        alignItems={isMobile ? "stretch" : "center"}
-      >
+      {/* Hisoblash va eksport */}
+      <Stack direction="row" spacing={2} mb={2} flexWrap="wrap">
         <TextField
-          fullWidth={isMobile}
           type="month"
           size="small"
           label="Oy"
@@ -269,57 +345,54 @@ export default function Payments() {
           variant="contained"
           startIcon={<Calculate />}
           onClick={handleCalculateMonthly}
-          fullWidth={isMobile}
         >
           Oylik qarzlarni hisobla
         </Button>
-        <Button
-          variant="outlined"
-          startIcon={<Refresh />}
-          onClick={fetchAll}
-          fullWidth={isMobile}
-        >
+        <Button variant="outlined" startIcon={<Refresh />} onClick={fetchAll}>
           Yangilash
         </Button>
+        {debtors.length > 0 && (
+          <Button
+            variant="outlined"
+            startIcon={<Download />}
+            onClick={exportToExcel}
+          >
+            Excel
+          </Button>
+        )}
       </Stack>
 
-      {/* Loading */}
+      {/* Jadval */}
       {loading ? (
         <Box textAlign="center" mt={4}>
           <CircularProgress />
         </Box>
       ) : (
         <>
-          {/* Qarzdorlar jadvali */}
+          {/* Qarzdorlar */}
           {debtors.length > 0 && (
             <>
               <Typography variant="h6" mb={1}>
                 ⚠️ Qarzdorlar ({debtors.length} nafar)
               </Typography>
               <TableContainer component={Paper} sx={{ borderRadius: 3, mb: 4 }}>
-                <Table size={isMobile ? "small" : "medium"}>
+                <Table size="small">
                   <TableHead sx={{ bgcolor: "#f3f4f6" }}>
                     <TableRow>
                       <TableCell>O‘quvchi</TableCell>
                       <TableCell>Guruh</TableCell>
                       <TableCell>Kurs</TableCell>
-                      <TableCell align="right">Umumiy qarz</TableCell>
+                      <TableCell align="right">Qarzdorlik</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {debtors.map((d, i) => (
-                      <TableRow
-                        key={i}
-                        sx={{
-                          bgcolor: "#ffe5e5",
-                          "&:hover": { bgcolor: "#ffd6d6" },
-                        }}
-                      >
+                      <TableRow key={i}>
                         <TableCell>{d.student_name}</TableCell>
                         <TableCell>{d.group_name}</TableCell>
                         <TableCell>{d.course_name}</TableCell>
                         <TableCell align="right" sx={{ color: "red" }}>
-                          {d.debt_amount.toLocaleString()} so‘m
+                          {money(d.debt_amount)} so‘m
                         </TableCell>
                       </TableRow>
                     ))}
@@ -329,12 +402,12 @@ export default function Payments() {
             </>
           )}
 
-          {/* To‘lovlar jadvali */}
+          {/* Barcha to‘lovlar */}
           <Typography variant="h6" mb={1}>
             📋 Barcha to‘lovlar
           </Typography>
           <TableContainer component={Paper} sx={{ borderRadius: 3 }}>
-            <Table size={isMobile ? "small" : "medium"}>
+            <Table size="small">
               <TableHead sx={{ bgcolor: "#f3f4f6" }}>
                 <TableRow>
                   <TableCell>O‘quvchi</TableCell>
@@ -346,31 +419,14 @@ export default function Payments() {
               </TableHead>
               <TableBody>
                 {grouped.map((s) => (
-                  <TableRow
-                    key={s.id}
-                    hover
-                    sx={{
-                      cursor: "pointer",
-                      bgcolor: s.totalDebt > 0 ? "#fff0f0" : "inherit",
-                      "&:hover": {
-                        bgcolor: s.totalDebt > 0 ? "#ffe5e5" : "#f9f9f9",
-                      },
-                    }}
-                    onClick={() => openHistory(s)}
-                  >
+                  <TableRow key={s.id} hover onClick={() => openHistory(s)}>
                     <TableCell>{s.name}</TableCell>
                     <TableCell>{formatMonth(s.latestMonth)}</TableCell>
                     <TableCell align="right">
-                      {s.totalPaid.toLocaleString()} so‘m
+                      {money(s.totalPaid)} so‘m
                     </TableCell>
-                    <TableCell align="right">
-                      {s.totalDebt > 0 ? (
-                        <Typography color="error">
-                          -{s.totalDebt.toLocaleString()} so‘m
-                        </Typography>
-                      ) : (
-                        "0"
-                      )}
+                    <TableCell align="right" sx={{ color: "red" }}>
+                      {money(s.totalDebt)} so‘m
                     </TableCell>
                     <TableCell>
                       <Chip
@@ -380,7 +436,7 @@ export default function Payments() {
                             ? "Qarzdor"
                             : s.totalPaid > 0
                             ? "To‘langan"
-                            : "To‘lov yo‘q"
+                            : "Yo‘q"
                         }
                         color={
                           s.totalDebt > 0
@@ -438,10 +494,10 @@ export default function Payments() {
                     >
                       <TableCell>{formatMonth(h.month)}</TableCell>
                       <TableCell align="right">
-                        {h.amount.toLocaleString()} so‘m
+                        {money(h.amount)} so‘m
                       </TableCell>
                       <TableCell align="right" sx={{ color: "red" }}>
-                        {h.debt_amount?.toLocaleString()} so‘m
+                        {money(h.debt_amount)} so‘m
                       </TableCell>
                       <TableCell>{h.status}</TableCell>
                     </TableRow>
@@ -450,20 +506,21 @@ export default function Payments() {
               </Table>
             </TableContainer>
           ) : (
-            <Typography color="gray" align="center" mt={2}>
+            <Typography align="center" color="gray" mt={2}>
               To‘lovlar topilmadi ☹️
             </Typography>
           )}
 
-          {/* Add new payment */}
-          <Typography variant="subtitle2" mt={3} mb={1}>
+          <Divider sx={{ my: 2 }} />
+
+          <Typography variant="subtitle2" mb={1}>
             ➕ Yangi to‘lov qo‘shish
           </Typography>
 
           <FormControl fullWidth size="small" sx={{ mb: 1 }}>
             <InputLabel>Guruh</InputLabel>
             <Select
-              value={form.group_id}
+              value={payForm.group_id}
               onChange={(e) => handleGroupChange(e.target.value)}
             >
               <MenuItem value="">Tanlang</MenuItem>
@@ -475,13 +532,14 @@ export default function Payments() {
             </Select>
           </FormControl>
 
-          {form.group_id && (
-            <Typography variant="body2" sx={{ mb: 1 }}>
+          {payForm.group_id && (
+            <Typography variant="body2" mb={1}>
               Kurs narxi:{" "}
               <b>
-                {groups
-                  .find((gr) => gr.id === Number(form.group_id))
-                  ?.course?.price.toLocaleString()}{" "}
+                {money(
+                  groups.find((gr) => gr.id === Number(payForm.group_id))
+                    ?.course?.price
+                )}{" "}
                 so‘m
               </b>
             </Typography>
@@ -493,17 +551,22 @@ export default function Payments() {
             type="month"
             label="Oy"
             sx={{ mb: 1 }}
-            value={form.month}
-            onChange={(e) => setForm((f) => ({ ...f, month: e.target.value }))}
+            value={payForm.month}
+            onChange={(e) =>
+              setPayForm((f) => ({ ...f, month: e.target.value }))
+            }
           />
+
           <TextField
             fullWidth
             size="small"
             type="number"
             label="Summa (so‘m)"
             sx={{ mb: 2 }}
-            value={form.amount}
-            onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
+            value={payForm.amount}
+            onChange={(e) =>
+              setPayForm((f) => ({ ...f, amount: e.target.value }))
+            }
           />
 
           <Button
