@@ -154,7 +154,8 @@ export default function TestPage() {
   const handleViewResults = async (testId) => {
     try {
       const res = await api.get(`/tests/${testId}/results`);
-      setResults(res.data.results || []);
+      setResults(res.data || []);
+      console.log(res.data);
       setResultsOpen(true);
     } catch {
       toast.error("❌ Natijalarni olishda xatolik!");
@@ -323,7 +324,7 @@ export default function TestPage() {
         >
           <DialogTitle>📊 Test natijalari</DialogTitle>
           <DialogContent dividers>
-            {results.length === 0 ? (
+            {results?.results?.length === 0 ? (
               <Typography color="text.secondary">
                 Hozircha hech kim testni topshirmagan
               </Typography>
@@ -340,18 +341,19 @@ export default function TestPage() {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {results.map((r, i) => (
+                    {results.results?.map((r, i) => (
                       <TableRow
                         key={i}
                         hover
                         sx={{ cursor: "pointer" }}
-                        onClick={() =>
+                        onClick={() => {
                           handleViewDetailed(
-                            r.test_id,
+                            results.test_id,
                             r.student_id,
                             r.submitted_at
-                          )
-                        }
+                          );
+                          console.log(results);
+                        }}
                       >
                         <TableCell>{r.student_name}</TableCell>
                         <TableCell>{r.group_name}</TableCell>
