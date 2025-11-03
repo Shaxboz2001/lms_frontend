@@ -94,7 +94,7 @@ const Dashboard = ({ role }) => {
     ],
     student: [
       { name: "Kurslarim", path: "kurslarim", component: <Courses /> },
-      { name: "Baholar", path: "baholar", component: <Register /> },
+      // { name: "Baholar", path: "baholar", component: <Register /> },
       { name: "Testlar", path: "testlar", component: <Test role="student" /> },
     ],
   };
