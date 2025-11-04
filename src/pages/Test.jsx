@@ -41,7 +41,7 @@ export default function TestPage() {
   const [newTest, setNewTest] = useState({
     title: "",
     description: "",
-    group_id: "",
+    group_ids: [], // ✅ endi array bo‘ladi
   });
   const [questions, setQuestions] = useState([
     { text: "", options: [{ text: "", is_correct: 0 }] },
@@ -57,6 +57,48 @@ export default function TestPage() {
   const [detailedResult, setDetailedResult] = useState(null);
   const [resultsOpen, setResultsOpen] = useState(false);
   const [results, setResults] = useState([]);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editTestData, setEditTestData] = useState({
+    id: null,
+    title: "",
+    description: "",
+    group_ids: [],
+  });
+
+  // Edit modalni ochish
+  const handleEditTest = (test) => {
+    setEditTestData({
+      id: test.id,
+      title: test.title,
+      description: test.description,
+      group_ids: test.groups?.map((g) => g.id) || [], // API dan kelayotgan guruhlar
+    });
+    setEditOpen(true);
+  };
+
+  // Editni saqlash
+  const saveEditTest = async () => {
+    if (!editTestData.title || editTestData.group_ids.length === 0) {
+      toast.error("Iltimos, nom va guruhlarni tanlang!");
+      return;
+    }
+
+    try {
+      await api.put(`/tests/${editTestData.id}`, {
+        title: editTestData.title,
+        description: editTestData.description,
+        group_ids: editTestData.group_ids,
+      });
+      toast.success("✅ Test yangilandi!");
+      setEditOpen(false);
+
+      // Tests ro'yxatini yangilash
+      const res = await api.get("/tests");
+      setTests(res.data);
+    } catch (error) {
+      toast.error("❌ Testni yangilashda xatolik!");
+    }
+  };
 
   const userId = localStorage.getItem("userId");
 
@@ -89,14 +131,20 @@ export default function TestPage() {
   };
 
   const createTest = async () => {
-    if (!newTest.title || !newTest.group_id) {
-      toast.error("Iltimos, test nomi va guruhni tanlang!");
+    if (!newTest.title || newTest.group_ids.length === 0) {
+      toast.error("Iltimos, test nomi va kamida bitta guruhni tanlang!");
       return;
     }
+
     try {
-      await api.post(`/tests/`, { ...newTest, questions });
+      await api.post(`/tests/`, {
+        title: newTest.title,
+        description: newTest.description,
+        group_ids: newTest.group_ids,
+        questions,
+      });
       toast.success("✅ Test yaratildi!");
-      setNewTest({ title: "", description: "", group_id: "" });
+      setNewTest({ title: "", description: "", group_ids: [] });
       setQuestions([{ text: "", options: [{ text: "", is_correct: 0 }] }]);
       const res = await api.get(`/tests`);
       setTests(res.data);
@@ -210,11 +258,18 @@ export default function TestPage() {
             }
           />
           <FormControl fullWidth margin="normal">
-            <InputLabel>Guruh</InputLabel>
+            <InputLabel>Guruhlar</InputLabel>
             <Select
-              value={newTest.group_id}
+              multiple
+              value={newTest.group_ids}
               onChange={(e) =>
-                setNewTest({ ...newTest, group_id: e.target.value })
+                setNewTest({ ...newTest, group_ids: e.target.value })
+              }
+              renderValue={(selected) =>
+                groups
+                  .filter((g) => selected.includes(g.id))
+                  .map((g) => g.name)
+                  .join(", ")
               }
             >
               {groups.map((g) => (
@@ -309,6 +364,9 @@ export default function TestPage() {
                   onClick={() => handleViewResults(t.id)}
                 >
                   Natijalarni ko‘rish
+                </Button>
+                <Button variant="outlined" onClick={() => handleEditTest(t)}>
+                  ✏️ Tahrirlash
                 </Button>
               </Box>
             </CardContent>
@@ -411,6 +469,62 @@ export default function TestPage() {
             <Button onClick={() => setDetailOpen(false)}>Yopish</Button>
           </DialogActions>
         </Dialog>
+        <Dialog
+          open={editOpen}
+          onClose={() => setEditOpen(false)}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle>✏️ Testni tahrirlash</DialogTitle>
+          <DialogContent dividers>
+            <TextField
+              label="Test nomi"
+              fullWidth
+              margin="normal"
+              value={editTestData.title}
+              onChange={(e) =>
+                setEditTestData({ ...editTestData, title: e.target.value })
+              }
+            />
+            <TextField
+              label="Izoh"
+              fullWidth
+              margin="normal"
+              value={editTestData.description}
+              onChange={(e) =>
+                setEditTestData({
+                  ...editTestData,
+                  description: e.target.value,
+                })
+              }
+            />
+            <FormControl fullWidth margin="normal">
+              <InputLabel>Guruhlar</InputLabel>
+              <Select
+                multiple
+                value={editTestData.group_ids}
+                onChange={(e) =>
+                  setEditTestData({
+                    ...editTestData,
+                    group_ids: e.target.value,
+                  })
+                }
+              >
+                {groups.map((g) => (
+                  <MenuItem key={g.id} value={g.id}>
+                    {g.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setEditOpen(false)}>Bekor qilish</Button>
+            <Button variant="contained" onClick={saveEditTest}>
+              Saqlash
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Box>
     );
   }
@@ -482,7 +596,13 @@ export default function TestPage() {
               </RadioGroup>
             </Box>
           ))}
-          <Button variant="contained" onClick={() => setConfirmSubmit(true)}>
+          <Button
+            variant="contained"
+            onClick={() => {
+              setConfirmSubmit(true);
+              submitTest();
+            }}
+          >
             Yuborish
           </Button>
           <Button

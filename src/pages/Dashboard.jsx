@@ -27,7 +27,7 @@ import {
   TableBody,
   useMediaQuery,
 } from "@mui/material";
-import { Menu as MenuIcon } from "@mui/icons-material";
+import { Menu as MenuIcon, Schedule } from "@mui/icons-material";
 import { Routes, Route, useNavigate } from "react-router-dom";
 import { useTheme } from "@mui/material/styles";
 import { api } from "../services/api";
@@ -44,6 +44,7 @@ import MyProfile from "./MyProfile";
 import TeacherGroups from "./TeacherGroups";
 import Reports from "./Reports";
 import Payroll from "./Payroll";
+import SchedulePage from "./Schedule";
 
 const drawerWidth = 240;
 
@@ -74,6 +75,7 @@ const Dashboard = ({ role }) => {
       { name: "To‘lovlar", path: "tolovlar", component: <Payments /> },
       { name: "Hisobotlar", path: "hisobotlar", component: <Reports /> },
       { name: "Maoshlar", path: "maoshlar", component: <Payroll /> },
+      { name: "Dars jadvali", path: "schedule", component: <SchedulePage /> },
       {
         name: "Ro‘yxatdan o‘tkazish",
         path: "register",
@@ -85,16 +87,19 @@ const Dashboard = ({ role }) => {
       { name: "O‘quvchilar", path: "oquvchilar", component: <Students /> },
       { name: "To‘lovlar", path: "tolovlar", component: <Payments /> },
       { name: "Kurslar", path: "kurslar", component: <Courses /> },
+      { name: "Dars jadvali", path: "schedule", component: <SchedulePage /> },
       { name: "Hisobotlar", path: "hisobotlar", component: <Reports /> },
     ],
     teacher: [
       { name: "Guruhlarim", path: "guruhlarim", component: <TeacherGroups /> },
       { name: "Yo‘qlama", path: "yoqlama", component: <Attendance /> },
+      { name: "Dars jadvali", path: "schedule", component: <SchedulePage /> },
       { name: "Testlar", path: "testlar", component: <Test role="teacher" /> },
     ],
     student: [
       { name: "Kurslarim", path: "kurslarim", component: <Courses /> },
       // { name: "Baholar", path: "baholar", component: <Register /> },
+      { name: "Dars jadvali", path: "schedule", component: <SchedulePage /> },
       { name: "Testlar", path: "testlar", component: <Test role="student" /> },
     ],
   };
